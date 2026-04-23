@@ -120,6 +120,20 @@
       "when": 1747699200000,
       "tag": "0016_game_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1776958941578,
+      "tag": "0017_fluffy_black_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1776958941579,
+      "tag": "0018_romm_settings",
+      "breakpoints": true
     }
   ]
 }
