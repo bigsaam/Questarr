@@ -1,4 +1,13 @@
 import type { Downloader, DownloadStatus, DownloadDetails } from "../../shared/schema.js";
+
+function normalizeSabCompletedPath(
+  pathValue: string | undefined,
+  status: string
+): string | undefined {
+  if (!pathValue) return pathValue;
+  if (status !== "completed") return pathValue;
+  return pathValue.replace(/([\\/])incomplete(?=([\\/]|$))/i, "$1complete");
+}
 import { downloadersLogger } from "../logger.js";
 import https from "https";
 import { isSafeUrl, safeFetch } from "../ssrf.js";
@@ -460,6 +469,7 @@ export class SABnzbdClient implements DownloaderClient {
           error: status === "error" ? item.fail_message : undefined,
           repairStatus,
           unpackStatus,
+          downloadDir: normalizeSabCompletedPath(item.path || undefined, status),
         };
       } catch (error) {
         downloadersLogger.error(
