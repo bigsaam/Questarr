@@ -49,9 +49,7 @@ const platformMappingPatchSchema = z
 function isPathInside(root: string, candidate: string): boolean {
   const resolvedRoot = path.resolve(root);
   const resolvedCandidate = path.resolve(candidate);
-  return (
-    resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(resolvedRoot + path.sep)
-  );
+  return resolvedCandidate.startsWith(resolvedRoot + path.sep);
 }
 
 function resolveProposedPathWithinRoot(libraryRoot: string, rawPath: string): string {
@@ -453,6 +451,22 @@ importRouter.delete("/:id", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     logger.error({ error }, "Error skipping import");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+importRouter.get("/:id/plan", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const userId = res.locals.userId as string;
+    const overrideSource =
+      typeof req.query.sourcePath === "string" ? req.query.sourcePath : undefined;
+    const plan = await importManager.planConfirmImport(id, overrideSource, userId);
+    res.json(plan);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("not found"))
+      return res.status(404).json({ error: error.message });
+    logger.error({ error }, "Error planning import");
     res.status(500).json({ error: "Internal server error" });
   }
 });

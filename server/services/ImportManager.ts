@@ -2,7 +2,12 @@ import { type IStorage } from "../storage.js";
 import { PathMappingService } from "./PathMappingService.js";
 import { PlatformMappingService } from "./PlatformMappingService.js";
 import { ArchiveService } from "./ArchiveService.js";
-import { ImportStrategy, ImportReview, PCImportStrategy } from "./ImportStrategies.js";
+import {
+  ImportStrategy,
+  ImportReview,
+  PCImportStrategy,
+  sanitizeFsName,
+} from "./ImportStrategies.js";
 import { DownloaderManager } from "../downloaders.js";
 import fs from "fs-extra";
 import path from "node:path";
@@ -247,6 +252,40 @@ export class ImportManager {
     const remotePath = `${details.downloadDir}/${details.name}`;
     const remoteHost = this.extractRemoteHost(downloader.url);
     return this.pathService.translatePath(remotePath, remoteHost);
+  }
+
+  async planConfirmImport(
+    downloadId: string,
+    overrideSourcePath?: string,
+    callerUserId?: string
+  ): Promise<{ originalPath: string | null; proposedPath: string }> {
+    const download = await this.storage.getGameDownload(downloadId, callerUserId);
+    if (!download) throw new Error(`Download ${downloadId} not found`);
+
+    const game = await this.storage.getGame(download.gameId);
+    if (!game) throw new Error(`Game not found for download ${downloadId}`);
+
+    const config = await this.storage.getImportConfig(game.userId ?? undefined);
+    const libraryRoot = config.libraryRoot || "/data";
+
+    let resolvedOriginalPath: string | null = null;
+    try {
+      resolvedOriginalPath =
+        (await this.resolveConfirmOriginalPath(overrideSourcePath, download)) ?? null;
+    } catch {
+      // Source resolution failed — still return a proposed path based on game title
+    }
+
+    if (resolvedOriginalPath) {
+      const strategy = new PCImportStrategy();
+      const plan = await strategy.planImport(resolvedOriginalPath, game, libraryRoot, config);
+      return { originalPath: resolvedOriginalPath, proposedPath: plan.proposedPath };
+    }
+
+    return {
+      originalPath: null,
+      proposedPath: path.join(libraryRoot, "PC", sanitizeFsName(game.title)),
+    };
   }
 
   async confirmImport(

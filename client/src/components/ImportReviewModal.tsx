@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { ImportConfig } from "@shared/schema";
@@ -56,15 +56,34 @@ export default function ImportReviewModal({
   const [isSourceBrowserOpen, setIsSourceBrowserOpen] = useState(false);
   const [isDestBrowserOpen, setIsDestBrowserOpen] = useState(false);
 
+  const planApplied = useRef(false);
+
+  const { data: planData } = useQuery<{ originalPath: string; proposedPath: string }>({
+    queryKey: [`/api/imports/${downloadId}/plan`],
+    enabled: open,
+    retry: false,
+    staleTime: 30_000,
+  });
+
   // Reset state on open, defaulting transfer mode to the user's configured setting
   useEffect(() => {
     if (open) {
+      planApplied.current = false;
       setSourcePath("");
       setDestinationPath(importConfig?.libraryRoot ?? "");
       setTransferMode((importConfig?.transferMode as typeof transferMode) ?? "move");
       setUnpackArchive(false);
     }
   }, [open, downloadId, importConfig?.libraryRoot, importConfig?.transferMode]);
+
+  // Pre-fill paths from plan once when it loads
+  useEffect(() => {
+    if (open && planData && !planApplied.current) {
+      planApplied.current = true;
+      if (planData.originalPath) setSourcePath(planData.originalPath);
+      setDestinationPath(planData.proposedPath);
+    }
+  }, [open, planData]);
 
   const skipMutation = useMutation({
     mutationFn: async () => {

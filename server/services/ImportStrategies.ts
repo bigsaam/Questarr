@@ -1,7 +1,7 @@
 import { Game, ImportConfig } from "../../shared/schema.js";
 import fs from "fs-extra";
 import path from "node:path";
-function sanitizeFsName(name: string | null | undefined): string {
+export function sanitizeFsName(name: string | null | undefined): string {
   // eslint-disable-next-line no-control-regex
   return (name ?? "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
 }
