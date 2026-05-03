@@ -66,6 +66,20 @@ export default function ImportReviewModal({
     }
   }, [open, downloadId, importConfig?.libraryRoot, importConfig?.transferMode]);
 
+  const skipMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/imports/${downloadId}`);
+    },
+    onSuccess: () => {
+      toast({ description: "Import skipped" });
+      queryClient.invalidateQueries({ queryKey: ["/api/imports/pending"] });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to skip import", description: error.message, variant: "destructive" });
+    },
+  });
+
   const confirmMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", `/api/imports/${downloadId}/confirm`, {
@@ -197,7 +211,19 @@ export default function ImportReviewModal({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirm} disabled={confirmMutation.isPending}>
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => skipMutation.mutate()}
+              disabled={skipMutation.isPending || confirmMutation.isPending}
+            >
+              {skipMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Skip Import
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={confirmMutation.isPending || skipMutation.isPending}
+            >
               {confirmMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm Import
             </Button>

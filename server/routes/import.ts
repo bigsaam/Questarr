@@ -441,6 +441,22 @@ importRouter.get("/pending", async (req, res) => {
   }
 });
 
+importRouter.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const userId = res.locals.userId as string;
+    const download = await storage.getGameDownload(id, userId);
+    if (!download) {
+      return res.status(404).json({ error: "Download not found" });
+    }
+    await storage.updateGameDownloadStatus(id, "completed");
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ error }, "Error skipping import");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 importRouter.post("/:id/confirm", async (req, res) => {
   const { id } = req.params;
   try {

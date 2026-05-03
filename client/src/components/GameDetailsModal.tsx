@@ -451,6 +451,7 @@ export default function GameDetailsModal({ game, open, onOpenChange }: GameDetai
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/games/${game!.id}/downloads`] });
       queryClient.invalidateQueries({ queryKey: ["/api/downloads/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/imports/pending"] });
       toast({ description: "Download record removed" });
     },
     onError: () => {

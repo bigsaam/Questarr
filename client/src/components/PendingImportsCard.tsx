@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import ImportReviewModal from "./ImportReviewModal";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 interface PendingImport {
@@ -15,12 +17,28 @@ interface PendingImport {
 }
 
 export default function PendingImportsCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: pendingImports = [] } = useQuery<PendingImport[]>({
     queryKey: ["/api/imports/pending"],
     refetchInterval: 30000, // Poll every 30s
   });
 
   const [selectedImport, setSelectedImport] = useState<PendingImport | null>(null);
+
+  const skipMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/imports/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/imports/pending"] });
+      toast({ description: "Import skipped" });
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to skip import" });
+    },
+  });
 
   if (pendingImports.length === 0) return null;
 
@@ -61,9 +79,19 @@ export default function PendingImportsCard() {
                       })()}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => setSelectedImport(item)}>
-                  Review
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={skipMutation.isPending && skipMutation.variables === item.id}
+                    onClick={() => skipMutation.mutate(item.id)}
+                  >
+                    Skip
+                  </Button>
+                  <Button size="sm" onClick={() => setSelectedImport(item)}>
+                    Review
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
