@@ -1,5 +1,6 @@
 import { IStorage } from "../storage.js";
 import { InsertPathMapping, PathMapping } from "../../shared/schema.js";
+import { logger } from "../logger.js";
 import path from "path";
 
 export class PathMappingService {
@@ -54,22 +55,25 @@ export class PathMappingService {
       const localBasePath = path.resolve(bestMatch.localPath);
       const localPath = path.join(localBasePath, cleanRelative);
 
-      console.log(
-        `[PathMappingService] Mapped "${remotePath}" (host: ${remoteHost ?? "none"}) → "${localPath}" ` +
-          `via rule "${bestMatch.remotePath}" → "${bestMatch.localPath}"`
+      logger.debug(
+        {
+          remotePath,
+          remoteHost,
+          localPath,
+          rule: `${bestMatch.remotePath} → ${bestMatch.localPath}`,
+        },
+        "[PathMappingService] Mapped path"
       );
       return localPath;
     }
 
     if (mappings.length > 0) {
-      console.warn(
-        `[PathMappingService] No mapping matched "${remotePath}" (host: ${remoteHost ?? "none"}) — ` +
-          `${mappings.length} mapping(s) defined but none matched. Passing path through unchanged.`
+      logger.warn(
+        { remotePath, remoteHost, mappingCount: mappings.length },
+        "[PathMappingService] No mapping matched — passing path through unchanged"
       );
     } else {
-      console.log(
-        `[PathMappingService] No path mappings configured. Passing "${remotePath}" through unchanged.`
-      );
+      logger.debug({ remotePath }, "[PathMappingService] No path mappings configured");
     }
     return remotePath;
   }
