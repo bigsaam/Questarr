@@ -593,11 +593,14 @@ export async function checkDownloadStatus() {
             "Checking download status"
           );
 
-          // Check for completion
+          // Check for completion — exclude post-processing statuses so usenet
+          // downloads in "moving"/"unpacking" phase don't trigger import early.
           const isComplete =
             remoteDownload.status === "completed" ||
             remoteDownload.status === "seeding" ||
-            remoteDownload.progress >= 100;
+            (remoteDownload.progress >= 100 &&
+              remoteDownload.status !== "unpacking" &&
+              remoteDownload.status !== "repairing");
 
           if (isComplete) {
             igdbLogger.info(

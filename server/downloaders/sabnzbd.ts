@@ -377,6 +377,10 @@ export class SABnzbdClient implements DownloaderClient {
           status = "unpacking";
           unpackStatus = "unpacking";
           break;
+        case "moving":
+          status = "unpacking"; // File is being moved from incomplete to complete folder
+          unpackStatus = "unpacking";
+          break;
         case "completed":
           status = "completed";
           repairStatus = "good";
