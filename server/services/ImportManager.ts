@@ -40,7 +40,11 @@ const RELEASE_PLATFORM_TO_IGDB_ID: Record<string, number> = {
   pc: 6,
 };
 
+const MAX_PATH_RETRY = 5;
+
 export class ImportManager {
+  private readonly pathRetryCount = new Map<string, number>();
+
   constructor(
     private readonly storage: IStorage,
     private readonly pathService: PathMappingService,
@@ -178,13 +182,31 @@ export class ImportManager {
 
       logger.debug({ localPath }, "[ImportManager] Checking path accessibility");
       if (!(await fs.pathExists(localPath))) {
+        const retries = (this.pathRetryCount.get(downloadId) ?? 0) + 1;
+        if (retries < MAX_PATH_RETRY) {
+          this.pathRetryCount.set(downloadId, retries);
+          logger.warn(
+            {
+              localPath,
+              downloaderName,
+              remoteDownloadPath,
+              retry: retries,
+              maxRetry: MAX_PATH_RETRY,
+            },
+            "[ImportManager] Path not accessible — retrying next cycle"
+          );
+          await this.storage.updateGameDownloadStatus(downloadId, "downloading");
+          return;
+        }
+        this.pathRetryCount.delete(downloadId);
         logger.warn(
           { localPath, downloaderName, remoteDownloadPath },
-          "[ImportManager] Path not accessible — check path mappings under Settings → Path Mappings"
+          "[ImportManager] Path not accessible after retries — check path mappings under Settings → Path Mappings"
         );
         await this.storage.updateGameDownloadStatus(downloadId, "manual_review_required");
         return;
       }
+      this.pathRetryCount.delete(downloadId);
 
       processingPath = config.autoUnpack ? await this.extractIfArchive(localPath) : localPath;
 
