@@ -298,16 +298,20 @@ export class ImportManager {
       // Source resolution failed — still return a proposed path based on game title
     }
 
+    const fallbackProposedPath = path.join(libraryRoot, "PC", sanitizeFsName(game.title));
+
     if (resolvedOriginalPath) {
-      const strategy = new PCImportStrategy();
-      const plan = await strategy.planImport(resolvedOriginalPath, game, libraryRoot, config);
-      return { originalPath: resolvedOriginalPath, proposedPath: plan.proposedPath };
+      try {
+        const strategy = new PCImportStrategy();
+        const plan = await strategy.planImport(resolvedOriginalPath, game, libraryRoot, config);
+        return { originalPath: resolvedOriginalPath, proposedPath: plan.proposedPath };
+      } catch {
+        // Source not yet accessible (e.g. still in incomplete folder) — path is known but can't be stat'd
+        return { originalPath: resolvedOriginalPath, proposedPath: fallbackProposedPath };
+      }
     }
 
-    return {
-      originalPath: null,
-      proposedPath: path.join(libraryRoot, "PC", sanitizeFsName(game.title)),
-    };
+    return { originalPath: null, proposedPath: fallbackProposedPath };
   }
 
   async confirmImport(

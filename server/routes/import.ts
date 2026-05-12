@@ -63,7 +63,7 @@ function resolveProposedPathWithinRoot(libraryRoot: string, rawPath: string): st
     : path.resolve(resolvedRoot, path.normalize(rawPath).replace(/^[/\\]+/, ""));
 
   if (!isPathInside(resolvedRoot, resolvedTarget)) {
-    throw new Error("Invalid proposed path");
+    throw new Error("Destination must be a subfolder inside the library root, not the root itself");
   }
 
   return resolvedTarget;

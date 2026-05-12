@@ -133,6 +133,15 @@ export default function ImportReviewModal({
       });
       return;
     }
+    const libraryRoot = importConfig?.libraryRoot ?? "";
+    if (libraryRoot && destinationPath === libraryRoot) {
+      toast({
+        title: "Validation Error",
+        description: `Destination must be a subfolder inside ${libraryRoot}, not the root itself.`,
+        variant: "destructive",
+      });
+      return;
+    }
     confirmMutation.mutate();
   };
 
