@@ -368,6 +368,10 @@ export class SABnzbdClient implements DownloaderClient {
         case "paused":
           status = "paused";
           break;
+        case "verifying":
+          status = "repairing"; // Integrity check — file not ready yet
+          repairStatus = "repairing";
+          break;
         case "repairing":
           status = "repairing";
           repairStatus = "repairing";
@@ -377,8 +381,9 @@ export class SABnzbdClient implements DownloaderClient {
           status = "unpacking";
           unpackStatus = "unpacking";
           break;
+        case "running": // Post-processing script running after extraction
         case "moving":
-          status = "unpacking"; // File is being moved from incomplete to complete folder
+          status = "unpacking";
           unpackStatus = "unpacking";
           break;
         case "completed":
