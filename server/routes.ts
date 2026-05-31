@@ -2247,7 +2247,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/downloads", async (req, res) => {
     try {
       const enabledDownloaders = await storage.getEnabledDownloaders();
-      const trackedKeys = await storage.getTrackedDownloadKeys();
+      const [trackedKeys, gameStatuses] = await Promise.all([
+        storage.getTrackedDownloadKeys(),
+        storage.getTrackedDownloadGameStatuses(),
+      ]);
       // ⚡ Bolt: Fetch downloads from all downloaders in parallel to reduce latency.
       const results = await Promise.all(
         enabledDownloaders.map(async (downloader) => {
@@ -2255,15 +2258,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const downloads = await DownloaderManager.getAllDownloads(downloader);
             return {
               success: true as const,
-              data: downloads.map((download) => ({
-                ...download,
-                downloaderId: downloader.id,
-                downloaderName: downloader.name,
-                trackedByQuestarr:
-                  trackedKeys.has(`${downloader.id}:${download.id}`) ||
-                  trackedKeys.has(`${downloader.id}:${download.id.toLowerCase()}`),
-                downloaderCategory: downloader.category ?? undefined,
-              })),
+              data: downloads.map((download) => {
+                const keyNormal = `${downloader.id}:${download.id}`;
+                const keyLower = `${downloader.id}:${download.id.toLowerCase()}`;
+                return {
+                  ...download,
+                  downloaderId: downloader.id,
+                  downloaderName: downloader.name,
+                  trackedByQuestarr: trackedKeys.has(keyNormal) || trackedKeys.has(keyLower),
+                  gameStatus: gameStatuses.get(keyNormal) ?? gameStatuses.get(keyLower),
+                  downloaderCategory: downloader.category ?? undefined,
+                };
+              }),
             };
           } catch (error) {
             return {

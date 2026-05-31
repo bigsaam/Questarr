@@ -1,6 +1,7 @@
 import { Game, ImportConfig } from "../../shared/schema.js";
 import fs from "fs-extra";
 import path from "node:path";
+import { logger } from "../logger.js";
 export function sanitizeFsName(name: string | null | undefined): string {
   // eslint-disable-next-line no-control-regex
   return (name ?? "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
@@ -75,8 +76,9 @@ async function transferFile(
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "EXDEV") {
-      console.warn(
-        `[transferFile] Hardlink failed across devices (EXDEV), falling back to copy: ${source} -> ${destination}`
+      logger.warn(
+        { source, destination },
+        "[ImportStrategies] Hardlink not supported across devices, falling back to copy"
       );
       await fs.copy(source, destination, { overwrite: true });
       return "copy";

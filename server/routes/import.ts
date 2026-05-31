@@ -39,6 +39,7 @@ const importConfigPatchSchema = z
     ignoredExtensions: z.array(z.string().min(1)).optional(),
     minFileSize: z.number().int().min(0).optional(),
     libraryRoot: z.string().min(1).max(1024).optional(),
+    autoDeleteAfterImport: z.boolean().optional(),
   })
   .strict();
 

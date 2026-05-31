@@ -79,6 +79,7 @@ function buildImportConfigFromSettings(
     | "ignoredExtensions"
     | "minFileSize"
     | "libraryRoot"
+    | "autoDeleteAfterImport"
   >
 ): ImportConfig {
   const parsed = importConfigSchema.safeParse({
@@ -91,6 +92,7 @@ function buildImportConfigFromSettings(
     ignoredExtensions: settings?.ignoredExtensions ?? [],
     minFileSize: settings?.minFileSize ?? 0,
     libraryRoot: settings?.libraryRoot ?? "/data",
+    autoDeleteAfterImport: settings?.autoDeleteAfterImport ?? false,
   });
 
   if (parsed.success) return parsed.data;
@@ -105,6 +107,7 @@ function buildImportConfigFromSettings(
     ignoredExtensions: settings?.ignoredExtensions ?? [],
     minFileSize: settings?.minFileSize ?? 0,
     libraryRoot: settings?.libraryRoot ?? "/data",
+    autoDeleteAfterImport: settings?.autoDeleteAfterImport ?? false,
   };
 }
 
@@ -176,6 +179,7 @@ export interface IStorage {
   removeGameDownload(id: string, gameId: string): Promise<boolean>;
   getDownloadSummaryByGame(userId: string): Promise<Record<string, DownloadSummary>>;
   getTrackedDownloadKeys(): Promise<Set<string>>;
+  getTrackedDownloadGameStatuses(): Promise<Map<string, string>>;
 
   // Notification methods
   getNotifications(userId: string, limit?: number): Promise<Notification[]>;
@@ -791,6 +795,17 @@ export class MemStorage implements IStorage {
     return keys;
   }
 
+  async getTrackedDownloadGameStatuses(): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    for (const gd of Array.from(this.gameDownloads.values())) {
+      const game = this.games.get(gd.gameId);
+      if (game) {
+        result.set(`${gd.downloaderId}:${gd.downloadHash}`, game.status);
+      }
+    }
+    return result;
+  }
+
   async getDownloadSummaryByGame(userId: string): Promise<Record<string, DownloadSummary>> {
     const userGameIds = new Set(
       Array.from(this.games.values())
@@ -1006,6 +1021,7 @@ export class MemStorage implements IStorage {
       ignoredExtensions: insertSettings.ignoredExtensions ?? [],
       minFileSize: insertSettings.minFileSize ?? 0,
       libraryRoot: insertSettings.libraryRoot ?? "/data",
+      autoDeleteAfterImport: insertSettings.autoDeleteAfterImport ?? false,
 
       preferredReleaseGroups: insertSettings.preferredReleaseGroups ?? null,
       filterByPreferredGroups: insertSettings.filterByPreferredGroups ?? false,
@@ -1861,6 +1877,22 @@ export class DatabaseStorage implements IStorage {
       })
       .from(gameDownloads);
     return new Set(rows.map((r) => `${r.downloaderId}:${r.downloadHash}`));
+  }
+
+  async getTrackedDownloadGameStatuses(): Promise<Map<string, string>> {
+    const rows = await db
+      .select({
+        downloaderId: gameDownloads.downloaderId,
+        downloadHash: gameDownloads.downloadHash,
+        gameStatus: games.status,
+      })
+      .from(gameDownloads)
+      .innerJoin(games, eq(gameDownloads.gameId, games.id));
+    const result = new Map<string, string>();
+    for (const r of rows) {
+      result.set(`${r.downloaderId}:${r.downloadHash}`, r.gameStatus);
+    }
+    return result;
   }
 
   async getDownloadSummaryByGame(userId: string): Promise<Record<string, DownloadSummary>> {

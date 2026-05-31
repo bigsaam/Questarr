@@ -16,10 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, X, ArrowRight, Folder, Link, Copy, MoveRight } from "lucide-react";
+import { Loader2, FolderOpen, ArrowRight, Folder, Link, Copy, MoveRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ImportConfig } from "@shared/schema";
 import { PathMappingSettings } from "./PathMappingSettings";
+import { FileBrowser } from "./FileBrowser";
 
 type IgdbPlatform = { id: number; name: string };
 type AppConfig = { igdb?: { configured?: boolean } };
@@ -69,6 +70,7 @@ export default function ImportSettings() {
   // Local State
   const [localConfig, setLocalConfig] = useState<ImportConfig | null>(null);
   const [platformSearch, setPlatformSearch] = useState("");
+  const [libraryBrowserOpen, setLibraryBrowserOpen] = useState(false);
 
   useEffect(() => {
     if (config) setLocalConfig(config);
@@ -198,13 +200,25 @@ export default function ImportSettings() {
                     <div className="space-y-4 mb-6">
                       <div className="space-y-1.5">
                         <Label>Library Root</Label>
-                        <Input
-                          placeholder="/data/library"
-                          value={localConfig.libraryRoot}
-                          onChange={(e) =>
-                            setLocalConfig({ ...localConfig, libraryRoot: e.target.value })
-                          }
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="/data/library"
+                            value={localConfig.libraryRoot}
+                            onChange={(e) =>
+                              setLocalConfig({ ...localConfig, libraryRoot: e.target.value })
+                            }
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setLibraryBrowserOpen(true)}
+                            aria-label="Browse for library root folder"
+                          >
+                            <FolderOpen className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           Where files are placed after import.
                         </p>
@@ -232,18 +246,38 @@ export default function ImportSettings() {
                         <p className="text-xs text-muted-foreground">
                           Hardlink keeps torrents seeding while importing.
                         </p>
-                        {hardlinkCapability?.generic.supportedForAll === false &&
-                          localConfig.transferMode === "hardlink" && (
+                        {localConfig.transferMode === "hardlink" &&
+                          hardlinkCapability?.generic.supportedForAll === true && (
+                            <p className="text-xs text-emerald-500">Hardlink supported.</p>
+                          )}
+                        {localConfig.transferMode === "hardlink" &&
+                          hardlinkCapability?.generic.supportedForAll === false && (
                             <p className="text-xs text-amber-500">
-                              Hardlink unavailable for some download paths — will fall back to copy.
+                              Hardlink not available on this setup — will fall back to copy.
                             </p>
                           )}
-                        {hardlinkCapability?.generic.supportedForAll === null && (
+                        {localConfig.transferMode === "hardlink" &&
+                          hardlinkCapability?.generic.supportedForAll === null && (
+                            <p className="text-xs text-muted-foreground">
+                              Hardlink check unavailable: configure at least one downloader path
+                              first.
+                            </p>
+                          )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Auto-delete source after import</Label>
                           <p className="text-xs text-muted-foreground">
-                            Hardlink check unavailable: configure at least one downloader path
-                            first.
+                            After a successful copy or move import, remove the download from the
+                            client and delete source files.
                           </p>
-                        )}
+                        </div>
+                        <Switch
+                          checked={localConfig.autoDeleteAfterImport}
+                          onCheckedChange={(c) =>
+                            setLocalConfig({ ...localConfig, autoDeleteAfterImport: c })
+                          }
+                        />
                       </div>
                     </div>
 
@@ -584,6 +618,20 @@ export default function ImportSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {localConfig && (
+        <FileBrowser
+          open={libraryBrowserOpen}
+          onOpenChange={setLibraryBrowserOpen}
+          onSelect={(path) => {
+            setLocalConfig({ ...localConfig, libraryRoot: path });
+            setLibraryBrowserOpen(false);
+          }}
+          root="/"
+          title="Select Library Root"
+          initialPath={localConfig.libraryRoot || "/"}
+        />
+      )}
     </div>
   );
 }

@@ -246,6 +246,26 @@ export class ImportManager {
       }
 
       await this.finalizeImport(downloadId, game);
+
+      if (
+        config.autoDeleteAfterImport &&
+        (config.transferMode === "copy" || config.transferMode === "move")
+      ) {
+        const downloader = await this.storage.getDownloader(download.downloaderId);
+        if (downloader && download.downloadHash) {
+          const result = await DownloaderManager.removeDownload(
+            downloader,
+            download.downloadHash,
+            true
+          );
+          if (!result.success) {
+            logger.warn(
+              { downloadId, downloadHash: download.downloadHash },
+              "[ImportManager] Auto-delete after import failed"
+            );
+          }
+        }
+      }
     } catch (err) {
       logger.error({ err, downloadId }, "[ImportManager] Import failed");
       if (processingPath && localPath && processingPath !== localPath) {

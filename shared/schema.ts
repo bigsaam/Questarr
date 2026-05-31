@@ -61,6 +61,9 @@ export const userSettings = sqliteTable("user_settings", {
   ignoredExtensions: text("ignored_extensions", { mode: "json" }).$type<string[]>().default([]),
   minFileSize: integer("min_file_size").notNull().default(0),
   libraryRoot: text("library_root").notNull().default("/data"),
+  autoDeleteAfterImport: integer("auto_delete_after_import", { mode: "boolean" })
+    .notNull()
+    .default(false),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(
     sql`(strftime('%s', 'now') * 1000)`
   ),
@@ -101,6 +104,7 @@ export interface ImportConfig {
   ignoredExtensions: string[];
   minFileSize: number;
   libraryRoot: string;
+  autoDeleteAfterImport: boolean;
 }
 
 export const IMPORT_TRANSFER_MODES = ["move", "copy", "hardlink", "symlink"] as const;
@@ -119,6 +123,7 @@ export const importConfigSchema = z.object({
   ignoredExtensions: z.array(z.string()),
   minFileSize: z.number().int().min(0),
   libraryRoot: z.string().min(1),
+  autoDeleteAfterImport: z.boolean(),
 });
 
 export const systemConfig = sqliteTable("system_config", {

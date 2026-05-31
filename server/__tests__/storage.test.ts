@@ -684,6 +684,7 @@ describe("Import And Mapping Helpers", () => {
       ignoredExtensions: [],
       minFileSize: 0,
       libraryRoot: "/data",
+      autoDeleteAfterImport: false,
     });
   });
 

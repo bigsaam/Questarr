@@ -45,6 +45,7 @@ export function makeImportConfig(overrides: Partial<ImportConfig> = {}): ImportC
     ignoredExtensions: [],
     minFileSize: 0,
     libraryRoot: "/data",
+    autoDeleteAfterImport: false,
     ...overrides,
   };
 }
