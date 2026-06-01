@@ -23,6 +23,7 @@ import {
   type DownloadStatusType,
   type DownloadType,
 } from "@/lib/downloads-utils";
+import type { GameStatus } from "@shared/schema";
 import {
   Play,
   Pause,
@@ -83,7 +84,7 @@ interface DownloadStatus {
   grabs?: number;
   // Questarr tracking fields
   trackedByQuestarr?: boolean;
-  gameStatus?: string;
+  gameStatus?: GameStatus;
   downloaderCategory?: string;
 }
 

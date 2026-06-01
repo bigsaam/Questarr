@@ -304,8 +304,11 @@ export const insertGameSchema = createInsertSchema(games, {
   completedAt: true,
 });
 
+export const GAME_STATUSES = ["wanted", "owned", "shelved", "completed", "downloading"] as const;
+export type GameStatus = (typeof GAME_STATUSES)[number];
+
 export const updateGameStatusSchema = z.object({
-  status: z.enum(["wanted", "owned", "shelved", "completed", "downloading"]),
+  status: z.enum(GAME_STATUSES),
   completedAt: z.date().optional(),
 });
 

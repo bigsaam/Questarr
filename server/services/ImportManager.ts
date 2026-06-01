@@ -252,7 +252,14 @@ export class ImportManager {
         (config.transferMode === "copy" || config.transferMode === "move")
       ) {
         const downloader = await this.storage.getDownloader(download.downloaderId);
-        if (downloader && download.downloadHash) {
+        if (!downloader) {
+          logger.warn(
+            { downloadId, downloaderId: download.downloaderId },
+            "[ImportManager] Auto-delete skipped — downloader not found"
+          );
+        } else if (!download.downloadHash) {
+          logger.warn({ downloadId }, "[ImportManager] Auto-delete skipped — download has no hash");
+        } else {
           const result = await DownloaderManager.removeDownload(
             downloader,
             download.downloadHash,
@@ -260,9 +267,22 @@ export class ImportManager {
           );
           if (!result.success) {
             logger.warn(
-              { downloadId, downloadHash: download.downloadHash },
+              { downloadId, downloadHash: download.downloadHash, reason: result.message },
               "[ImportManager] Auto-delete after import failed"
             );
+            await this.storage
+              .addNotification({
+                userId: game.userId ?? "",
+                type: "warning",
+                title: "Auto-delete failed",
+                message: `"${game.title}" was imported successfully, but removing it from the download client failed: ${result.message ?? "unknown error"}. Please remove it manually.`,
+              })
+              .catch((notifErr) =>
+                logger.error(
+                  { notifErr, downloadId },
+                  "[ImportManager] Failed to create auto-delete notification"
+                )
+              );
           }
         }
       }

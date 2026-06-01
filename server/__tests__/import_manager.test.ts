@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fsMock } = vi.hoisted(() => ({
+const { fsMock, downloadersMock } = vi.hoisted(() => ({
   fsMock: {
     ensureDir: vi.fn().mockResolvedValue(undefined),
     move: vi.fn().mockResolvedValue(undefined),
@@ -9,10 +9,17 @@ const { fsMock } = vi.hoisted(() => ({
     stat: vi.fn().mockResolvedValue({ isDirectory: () => false }),
     readdir: vi.fn().mockResolvedValue([]),
   },
+  downloadersMock: {
+    removeDownload: vi.fn().mockResolvedValue({ success: true, message: "ok" }),
+  },
 }));
 
 vi.mock("fs-extra", () => ({
   default: fsMock,
+}));
+
+vi.mock("../downloaders.js", () => ({
+  DownloaderManager: downloadersMock,
 }));
 
 import { ImportManager } from "../services/ImportManager.js";
@@ -26,6 +33,7 @@ describe("ImportManager", () => {
     getDownloader: vi.fn(),
     updateGameDownloadStatus: vi.fn(),
     updateGameStatus: vi.fn(),
+    addNotification: vi.fn().mockResolvedValue(undefined),
   };
 
   const pathService = {
@@ -49,6 +57,8 @@ describe("ImportManager", () => {
     pathService.translatePath.mockResolvedValue("/data/downloads/file.iso");
     archiveService.isArchive.mockReturnValue(false);
     storage.getImportConfig.mockResolvedValue(baseConfig);
+    storage.addNotification.mockResolvedValue(undefined);
+    downloadersMock.removeDownload.mockResolvedValue({ success: true, message: "ok" });
   });
 
   it("returns early when download cannot be found", async () => {
@@ -775,5 +785,146 @@ describe("ImportManager", () => {
     expect(storage.updateGameDownloadStatus).toHaveBeenCalledWith("dl-1", "manual_review_required");
 
     planSpy.mockRestore();
+  });
+
+  // ─── autoDeleteAfterImport ────────────────────────────────────────────────────
+
+  function setupSuccessfulImport(transferMode: string, autoDeleteAfterImport = true) {
+    storage.getGameDownload.mockResolvedValue({
+      id: "dl-1",
+      gameId: "g1",
+      downloaderId: "d1",
+      downloadHash: "abc123",
+      downloadTitle: "Game",
+    });
+    storage.getGame.mockResolvedValue({
+      id: "g1",
+      title: "My Game",
+      userId: "u1",
+      status: "wanted",
+      platforms: [6],
+    });
+    storage.getDownloader.mockResolvedValue({ id: "d1", name: "qBit", url: "http://localhost" });
+    storage.getImportConfig.mockResolvedValue(
+      makeImportConfig({ transferMode: transferMode as never, autoDeleteAfterImport })
+    );
+  }
+
+  it("autoDeleteAfterImport: calls removeDownload for copy mode", async () => {
+    setupSuccessfulImport("copy");
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(downloadersMock.removeDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "d1" }),
+      "abc123",
+      true
+    );
+  });
+
+  it("autoDeleteAfterImport: calls removeDownload for move mode", async () => {
+    setupSuccessfulImport("move");
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(downloadersMock.removeDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "d1" }),
+      "abc123",
+      true
+    );
+  });
+
+  it("autoDeleteAfterImport: does NOT call removeDownload for hardlink mode", async () => {
+    setupSuccessfulImport("hardlink");
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(downloadersMock.removeDownload).not.toHaveBeenCalled();
+  });
+
+  it("autoDeleteAfterImport: does NOT call removeDownload for symlink mode", async () => {
+    setupSuccessfulImport("symlink");
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(downloadersMock.removeDownload).not.toHaveBeenCalled();
+  });
+
+  it("autoDeleteAfterImport: does NOT call removeDownload when import fails", async () => {
+    storage.getGameDownload.mockResolvedValue({
+      id: "dl-1",
+      gameId: "g1",
+      downloaderId: "d1",
+      downloadHash: "abc123",
+      downloadTitle: "Game",
+    });
+    storage.getGame.mockResolvedValue({
+      id: "g1",
+      title: "My Game",
+      userId: "u1",
+      status: "wanted",
+      platforms: [6],
+    });
+    storage.getImportConfig.mockResolvedValue(
+      makeImportConfig({ transferMode: "copy", autoDeleteAfterImport: true })
+    );
+    fsMock.pathExists.mockResolvedValue(false); // force retry/path-inaccessible path
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(downloadersMock.removeDownload).not.toHaveBeenCalled();
+  });
+
+  it("autoDeleteAfterImport: creates notification when removeDownload fails", async () => {
+    setupSuccessfulImport("copy");
+    downloadersMock.removeDownload.mockResolvedValue({
+      success: false,
+      message: "Torrent not found",
+    });
+
+    const manager = new ImportManager(
+      storage as never,
+      pathService as never,
+      platformService as never,
+      archiveService as never
+    );
+    await manager.processImport("dl-1", "/remote/path");
+
+    expect(storage.addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "warning",
+        title: "Auto-delete failed",
+      })
+    );
   });
 });

@@ -2249,7 +2249,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enabledDownloaders = await storage.getEnabledDownloaders();
       const [trackedKeys, gameStatuses] = await Promise.all([
         storage.getTrackedDownloadKeys(),
-        storage.getTrackedDownloadGameStatuses(),
+        storage.getTrackedDownloadGameStatuses().catch((err) => {
+          routesLogger.error({ err }, "Failed to fetch tracked download game statuses");
+          return new Map<string, string>();
+        }),
       ]);
       // ⚡ Bolt: Fetch downloads from all downloaders in parallel to reduce latency.
       const results = await Promise.all(
