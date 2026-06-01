@@ -1,4 +1,5 @@
 import type { Downloader, DownloadStatus, DownloadDetails } from "../../shared/schema.js";
+import { downloadersLogger } from "../logger.js";
 
 function normalizeSabCompletedPath(
   pathValue: string | undefined,
@@ -8,7 +9,6 @@ function normalizeSabCompletedPath(
   if (status !== "completed") return pathValue;
   return pathValue.replace(/([\\/])incomplete(?=([\\/]|$))/i, "$1complete");
 }
-import { downloadersLogger } from "../logger.js";
 import https from "https";
 import { isSafeUrl, safeFetch } from "../ssrf.js";
 import type { DownloadRequest, DownloaderClient } from "./types.js";
@@ -420,7 +420,7 @@ export class SABnzbdClient implements DownloaderClient {
     }
   }
 
-  private async getFromHistory(id: string): Promise<DownloadStatus | null> {
+  private async getFromHistory(id: string): Promise<DownloadDetails | null> {
     // Try with nzo_ids filter first (optimization). Some SABnzbd versions ignore
     // this parameter and return all history, or return empty slots — in that case
     // fall back to fetching the full history and searching locally.
@@ -479,6 +479,8 @@ export class SABnzbdClient implements DownloaderClient {
           repairStatus,
           unpackStatus,
           downloadDir: normalizeSabCompletedPath(item.path || undefined, status),
+          files: [],
+          trackers: [],
         };
       } catch (error) {
         downloadersLogger.error(

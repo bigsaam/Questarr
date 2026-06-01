@@ -81,7 +81,7 @@ export default function ImportReviewModal({
     if (open && planData && !planApplied.current) {
       planApplied.current = true;
       if (planData.originalPath) setSourcePath(planData.originalPath);
-      setDestinationPath(planData.proposedPath);
+      if (planData.proposedPath) setDestinationPath(planData.proposedPath);
     }
   }, [open, planData]);
 

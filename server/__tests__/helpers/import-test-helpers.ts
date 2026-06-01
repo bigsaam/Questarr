@@ -20,6 +20,7 @@ export function makeGame(overrides: Partial<Game> = {}): Game {
     developers: null,
     screenshots: null,
     hidden: false,
+    notes: null,
     originalReleaseDate: null,
     releaseStatus: null,
     addedAt: null,
