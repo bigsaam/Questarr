@@ -321,7 +321,7 @@ export class TransmissionClient implements DownloaderClient {
   async getDownloadStatus(id: string): Promise<DownloadStatus | null> {
     try {
       const response = await this.makeRequest("torrent-get", {
-        ids: [parseInt(id)],
+        ids: [/^\d+$/.test(id) ? parseInt(id) : id],
         fields: [
           "id",
           "name",

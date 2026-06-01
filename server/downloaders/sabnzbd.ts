@@ -194,7 +194,10 @@ export class SABnzbdClient implements DownloaderClient {
       return { success: false, message: "Invalid SABnzbd response - missing version field" };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      downloadersLogger.error({ error, url: this.getApiUrl("version") }, "SABnzbd connection test failed");
+      downloadersLogger.error(
+        { error, url: this.getApiUrl("version") },
+        "SABnzbd connection test failed"
+      );
       return {
         success: false,
         message: `Failed to connect to SABnzbd at ${this.getApiUrl("version")}: ${errorMessage}`,
@@ -483,10 +486,14 @@ export class SABnzbdClient implements DownloaderClient {
           trackers: [],
         };
       } catch (error) {
-        downloadersLogger.error(
-          { error, id, useFilter: useFilter },
-          "Failed to get SABnzbd history"
-        );
+        if (useFilter) {
+          downloadersLogger.warn(
+            { error, id },
+            "SABnzbd: filtered history fetch failed, retrying with full history"
+          );
+          continue;
+        }
+        downloadersLogger.error({ error, id }, "Failed to get SABnzbd history");
         return null;
       }
     }

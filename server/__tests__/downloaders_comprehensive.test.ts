@@ -628,7 +628,7 @@ describe("Downloader Comprehensive Tests", () => {
       // Mock NZB file download
       fetchMock.mockResolvedValueOnce({
         ok: true,
-        arrayBuffer: async () => new TextEncoder().encode("nzb content").buffer,
+        text: async () => "nzb content",
       });
 
       // Mock XML-RPC append
@@ -648,6 +648,7 @@ describe("Downloader Comprehensive Tests", () => {
         url: "http://example.com/test.nzb",
         title: "Test NZB",
         downloadType: "usenet",
+        category: "games",
       });
 
       expect(result.success).toBe(true);

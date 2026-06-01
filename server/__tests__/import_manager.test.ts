@@ -4,6 +4,7 @@ const { fsMock, downloadersMock } = vi.hoisted(() => ({
   fsMock: {
     ensureDir: vi.fn().mockResolvedValue(undefined),
     move: vi.fn().mockResolvedValue(undefined),
+    copy: vi.fn().mockResolvedValue(undefined),
     remove: vi.fn().mockResolvedValue(undefined),
     pathExists: vi.fn().mockResolvedValue(true),
     stat: vi.fn().mockResolvedValue({ isDirectory: () => false }),
@@ -144,7 +145,10 @@ describe("ImportManager", () => {
       archiveService as never
     );
 
-    await manager.processImport("dl-1", "/remote/path");
+    // MAX_PATH_RETRY = 5: first 4 calls set status back to "downloading"; 5th triggers manual_review_required
+    for (let i = 0; i < 5; i++) {
+      await manager.processImport("dl-1", "/remote/path");
+    }
 
     expect(storage.updateGameDownloadStatus).toHaveBeenCalledWith("dl-1", "manual_review_required");
   });
@@ -806,7 +810,11 @@ describe("ImportManager", () => {
     });
     storage.getDownloader.mockResolvedValue({ id: "d1", name: "qBit", url: "http://localhost" });
     storage.getImportConfig.mockResolvedValue(
-      makeImportConfig({ transferMode: transferMode as never, autoDeleteAfterImport })
+      makeImportConfig({
+        transferMode: transferMode as never,
+        autoDeleteAfterImport,
+        overwriteExisting: true,
+      })
     );
   }
 
