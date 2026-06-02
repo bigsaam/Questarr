@@ -2,6 +2,8 @@ import { Game, ImportConfig } from "../../shared/schema.js";
 import fs from "fs-extra";
 import path from "node:path";
 import { logger } from "../logger.js";
+export type TransferMode = "copy" | "move" | "hardlink" | "symlink";
+
 export function sanitizeFsName(name: string | null | undefined): string {
   // eslint-disable-next-line no-control-regex
   return (name ?? "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
@@ -12,7 +14,7 @@ export interface ImportResult {
   platformDir?: string;
   destDir: string;
   filesPlaced: string[];
-  modeUsed: "copy" | "move" | "hardlink" | "symlink";
+  modeUsed: TransferMode;
   conflictsResolved: string[];
 }
 
@@ -33,10 +35,7 @@ export interface ImportStrategy {
     targetRoot: string,
     config: ImportConfig
   ): Promise<ImportReview>;
-  executeImport(
-    review: ImportReview,
-    transferMode: "move" | "copy" | "hardlink" | "symlink"
-  ): Promise<ImportResult>;
+  executeImport(review: ImportReview, transferMode: TransferMode): Promise<ImportResult>;
 }
 
 async function ensureParentDir(filePath: string): Promise<void> {

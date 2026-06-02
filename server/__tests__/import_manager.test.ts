@@ -65,10 +65,10 @@ describe("ImportManager", () => {
   it("returns early when download cannot be found", async () => {
     storage.getGameDownload.mockResolvedValue(undefined);
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -84,10 +84,10 @@ describe("ImportManager", () => {
     storage.getGame.mockResolvedValue(undefined);
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -111,10 +111,10 @@ describe("ImportManager", () => {
     storage.getImportConfig.mockResolvedValue({ ...baseConfig, enablePostProcessing: false });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -139,10 +139,10 @@ describe("ImportManager", () => {
     fsMock.pathExists.mockResolvedValue(false);
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     // MAX_PATH_RETRY = 5: first 4 calls set status back to "downloading"; 5th triggers manual_review_required
@@ -169,10 +169,10 @@ describe("ImportManager", () => {
     pathService.translatePath.mockRejectedValue(new Error("translate failure"));
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -184,24 +184,24 @@ describe("ImportManager", () => {
   it("throws when confirmImport download is missing", async () => {
     storage.getGameDownload.mockResolvedValue(undefined);
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
-    await expect(manager.confirmImport("dl-1", { strategy: "pc" } as never)).rejects.toThrow(
-      "Download dl-1 not found"
-    );
+    await expect(
+      manager.confirmImport("dl-1", { strategy: "pc" } as never) // NOSONAR
+    ).rejects.toThrow("Download dl-1 not found");
   });
 
   it("throws when confirmImport is called without a plan", async () => {
     storage.getGameDownload.mockResolvedValue({ id: "dl-1", gameId: "g1" });
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await expect(manager.confirmImport("dl-1")).rejects.toThrow("Confirmation requires a plan");
@@ -219,10 +219,10 @@ describe("ImportManager", () => {
     storage.getImportConfig.mockResolvedValue({ ...baseConfig, libraryRoot: "/safe/root" });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await expect(
@@ -247,10 +247,10 @@ describe("ImportManager", () => {
     storage.getImportConfig.mockResolvedValue({ ...baseConfig, libraryRoot: "/safe/root" });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.confirmImport("dl-1", {
@@ -289,10 +289,10 @@ describe("ImportManager", () => {
     pathService.translatePath.mockResolvedValue("/data/downloads/file.zip");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -320,10 +320,10 @@ describe("ImportManager", () => {
     storage.getImportConfig.mockResolvedValue(makeImportConfig({ libraryRoot: "/games/pc" }));
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -354,10 +354,10 @@ describe("ImportManager", () => {
     );
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await expect(
@@ -382,10 +382,10 @@ describe("ImportManager", () => {
     storage.getGame.mockResolvedValue(undefined);
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await expect(
@@ -420,10 +420,10 @@ describe("ImportManager", () => {
     pathService.translatePath.mockResolvedValue("/data/downloads/file.zip");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -463,10 +463,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.confirmImport("dl-1", {
@@ -510,10 +510,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.confirmImport("dl-1", {
@@ -559,10 +559,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.confirmImport("dl-1", {
@@ -608,10 +608,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.confirmImport("dl-1", {
@@ -651,10 +651,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/downloads/game.zip");
@@ -683,10 +683,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/downloads/game.zip");
@@ -732,10 +732,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/downloads/game.zip");
@@ -778,10 +778,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
 
     await manager.processImport("dl-1", "/remote/path");
@@ -811,7 +811,7 @@ describe("ImportManager", () => {
     storage.getDownloader.mockResolvedValue({ id: "d1", name: "qBit", url: "http://localhost" });
     storage.getImportConfig.mockResolvedValue(
       makeImportConfig({
-        transferMode: transferMode as never,
+        transferMode: transferMode as never, // NOSONAR
         autoDeleteAfterImport,
         overwriteExisting: true,
       })
@@ -822,10 +822,10 @@ describe("ImportManager", () => {
     setupSuccessfulImport("copy");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 
@@ -840,10 +840,10 @@ describe("ImportManager", () => {
     setupSuccessfulImport("move");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 
@@ -858,10 +858,10 @@ describe("ImportManager", () => {
     setupSuccessfulImport("hardlink");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 
@@ -872,10 +872,10 @@ describe("ImportManager", () => {
     setupSuccessfulImport("symlink");
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 
@@ -903,10 +903,10 @@ describe("ImportManager", () => {
     fsMock.pathExists.mockResolvedValue(false); // force retry/path-inaccessible path
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 
@@ -921,10 +921,10 @@ describe("ImportManager", () => {
     });
 
     const manager = new ImportManager(
-      storage as never,
-      pathService as never,
-      platformService as never,
-      archiveService as never
+      storage as never, // NOSONAR
+      pathService as never, // NOSONAR
+      platformService as never, // NOSONAR
+      archiveService as never // NOSONAR
     );
     await manager.processImport("dl-1", "/remote/path");
 

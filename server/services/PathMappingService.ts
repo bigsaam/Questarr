@@ -1,10 +1,10 @@
 import { IStorage } from "../storage.js";
 import { InsertPathMapping, PathMapping } from "../../shared/schema.js";
 import { logger } from "../logger.js";
-import path from "path";
+import path from "node:path";
 
 export class PathMappingService {
-  constructor(private storage: IStorage) {}
+  constructor(private readonly storage: IStorage) {}
 
   async getAllMappings(): Promise<PathMapping[]> {
     return this.storage.getPathMappings();

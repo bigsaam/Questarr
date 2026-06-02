@@ -13,6 +13,20 @@ function isWithinRoot(root: string, candidate: string): boolean {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+function toVirtualPath(root: string, absolutePath: string): string {
+  const relative = path.relative(root, absolutePath);
+  if (!relative || relative === ".") return "/";
+  return `/${relative.split(path.sep).join("/")}`;
+}
+
+function sortDirents(
+  a: { isDirectory: boolean; name: string },
+  b: { isDirectory: boolean; name: string }
+): number {
+  if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+  return a.name.localeCompare(b.name);
+}
+
 export const systemRouter = Router();
 
 systemRouter.use((req, res, next) => {
@@ -67,7 +81,7 @@ systemRouter.get("/browse", async (req, res) => {
     }
 
     const SENSITIVE_PATH_PREFIXES = ["/proc", "/sys", "/dev", "/run/secrets", "/etc", "/root"];
-    const normalizedValid = validPath.replace(/\\/g, "/");
+    const normalizedValid = validPath.replaceAll("\\", "/");
     if (
       SENSITIVE_PATH_PREFIXES.some(
         (prefix) => normalizedValid === prefix || normalizedValid.startsWith(prefix + "/")
@@ -93,34 +107,21 @@ systemRouter.get("/browse", async (req, res) => {
 
     const files = await fs.readdir(validPath, { withFileTypes: true });
 
-    const toVirtualPath = (absolutePath: string) => {
-      const relative = path.relative(root, absolutePath);
-      if (!relative || relative === ".") return "/";
-      return `/${relative.split(path.sep).join("/")}`;
-    };
-
     // Format output using root-relative virtual paths so subsequent requests
     // are consistent across platforms and do not expose host absolute paths.
-    const items = files.map((f: import("fs").Dirent) => ({
+    const items = files.map((f: import("node:fs").Dirent) => ({
       name: f.name,
-      path: toVirtualPath(path.join(validPath, f.name)),
+      path: toVirtualPath(root, path.join(validPath, f.name)),
       isDirectory: f.isDirectory(),
       size: 0, // Getting size for all files might be slow
     }));
 
     // Sort: Directories first, then files
-    items.sort(
-      (a: { isDirectory: boolean; name: string }, b: { isDirectory: boolean; name: string }) => {
-        if (a.isDirectory === b.isDirectory) {
-          return a.name.localeCompare(b.name);
-        }
-        return a.isDirectory ? -1 : 1;
-      }
-    );
+    items.sort(sortDirents);
 
     res.json({
-      path: toVirtualPath(validPath),
-      parent: validPath === root ? null : toVirtualPath(path.dirname(validPath)),
+      path: toVirtualPath(root, validPath),
+      parent: validPath === root ? null : toVirtualPath(root, path.dirname(validPath)),
       items,
     });
   } catch (error) {

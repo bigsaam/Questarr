@@ -11,10 +11,10 @@ import {
   importTransferModeSchema,
   IMPORT_TRANSFER_MODES,
 } from "../../shared/schema.js";
-import path from "path";
+import path from "node:path";
 import fs from "fs-extra";
-import { randomUUID } from "crypto";
-import type { Stats } from "fs";
+import { randomUUID } from "node:crypto";
+import type { Stats } from "node:fs";
 import { extractHostnameFromUrl } from "../url-utils.js";
 
 export const importRouter = Router();

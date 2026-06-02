@@ -41,7 +41,7 @@ export function FileBrowser({
   initialPath = "/",
   title = "Select Directory",
   root,
-}: FileBrowserProps) {
+}: Readonly<FileBrowserProps>) {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [data, setData] = useState<BrowseResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -69,8 +69,8 @@ export function FileBrowser({
             const data = await res.json();
             setData(data);
             return;
-          } catch {
-            // fallback also failed — fall through to error state
+          } catch (e) {
+            console.debug("[FileBrowser] Fallback browse failed:", e);
           }
         }
         // Path doesn't exist on this machine; reset to root rather than showing an error
@@ -125,32 +125,34 @@ export function FileBrowser({
         {data?.items.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-4">Empty directory</div>
         )}
-        {data?.items.map((item) => (
-          <div
-            key={item.path}
-            role={item.isDirectory ? "button" : undefined}
-            tabIndex={item.isDirectory ? 0 : undefined}
-            className={`
-                    flex items-center gap-2 p-2 rounded-sm cursor-pointer hover:bg-accent
-                    ${!item.isDirectory ? "opacity-50 cursor-default" : ""}
-                  `}
-            onClick={() => item.isDirectory && handleNavigate(item.path)}
-            onKeyDown={(e) => {
-              if (item.isDirectory && (e.key === "Enter" || e.key === " ")) {
-                e.preventDefault();
-                handleNavigate(item.path);
-              }
-            }}
-          >
-            {item.isDirectory ? (
+        {data?.items.map((item) =>
+          item.isDirectory ? (
+            <button
+              key={item.path}
+              type="button"
+              className="flex items-center gap-2 p-2 rounded-sm cursor-pointer hover:bg-accent w-full text-left"
+              onClick={() => handleNavigate(item.path)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleNavigate(item.path);
+                }
+              }}
+            >
               <Folder className="h-4 w-4 text-blue-500" />
-            ) : (
+              <span className="text-sm flex-1 truncate">{item.name}</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            </button>
+          ) : (
+            <div
+              key={item.path}
+              className="flex items-center gap-2 p-2 rounded-sm opacity-50 cursor-default"
+            >
               <File className="h-4 w-4 text-gray-500" />
-            )}
-            <span className="text-sm flex-1 truncate">{item.name}</span>
-            {item.isDirectory && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-          </div>
-        ))}
+              <span className="text-sm flex-1 truncate">{item.name}</span>
+            </div>
+          )
+        )}
       </div>
     );
   }

@@ -26,7 +26,7 @@ const DEFAULT_MAPPINGS: { igdbPlatformId: number; sourcePlatformName: string }[]
 ];
 
 export class PlatformMappingService {
-  constructor(private storage: IStorage) {}
+  constructor(private readonly storage: IStorage) {}
 
   async initializeDefaults(): Promise<void> {
     if (typeof this.storage.seedPlatformMappingsIfEmpty === "function") {

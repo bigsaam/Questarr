@@ -149,6 +149,83 @@ export class ImportManager {
     }
   }
 
+  private async verifyLocalPath(
+    downloadId: string,
+    localPath: string,
+    meta: { downloaderName: string; remoteDownloadPath: string }
+  ): Promise<boolean> {
+    if (await fs.pathExists(localPath)) {
+      this.pathRetryCount.delete(downloadId);
+      return true;
+    }
+    const retries = (this.pathRetryCount.get(downloadId) ?? 0) + 1;
+    if (retries < MAX_PATH_RETRY) {
+      this.pathRetryCount.set(downloadId, retries);
+      logger.warn(
+        {
+          localPath,
+          downloaderName: meta.downloaderName,
+          remoteDownloadPath: meta.remoteDownloadPath,
+          retry: retries,
+          maxRetry: MAX_PATH_RETRY,
+        },
+        "[ImportManager] Path not accessible — retrying next cycle"
+      );
+      await this.storage.updateGameDownloadStatus(downloadId, "downloading");
+      return false;
+    }
+    this.pathRetryCount.delete(downloadId);
+    logger.warn(
+      {
+        localPath,
+        downloaderName: meta.downloaderName,
+        remoteDownloadPath: meta.remoteDownloadPath,
+      },
+      "[ImportManager] Path not accessible after retries — check path mappings under Settings → Path Mappings"
+    );
+    await this.storage.updateGameDownloadStatus(downloadId, "manual_review_required");
+    return false;
+  }
+
+  private async performAutoDelete(
+    downloadId: string,
+    download: NonNullable<Awaited<ReturnType<IStorage["getGameDownload"]>>>,
+    game: NonNullable<Awaited<ReturnType<IStorage["getGame"]>>>
+  ): Promise<void> {
+    const downloader = await this.storage.getDownloader(download.downloaderId);
+    if (!downloader) {
+      logger.warn(
+        { downloadId, downloaderId: download.downloaderId },
+        "[ImportManager] Auto-delete skipped — downloader not found"
+      );
+      return;
+    }
+    if (!download.downloadHash) {
+      logger.warn({ downloadId }, "[ImportManager] Auto-delete skipped — download has no hash");
+      return;
+    }
+    const result = await DownloaderManager.removeDownload(downloader, download.downloadHash, true);
+    if (!result.success) {
+      logger.warn(
+        { downloadId, downloadHash: download.downloadHash, reason: result.message },
+        "[ImportManager] Auto-delete after import failed"
+      );
+      await this.storage
+        .addNotification({
+          userId: game.userId ?? "",
+          type: "warning",
+          title: "Auto-delete failed",
+          message: `"${game.title}" was imported successfully, but removing it from the download client failed: ${result.message ?? "unknown error"}. Please remove it manually.`,
+        })
+        .catch((notifErr) =>
+          logger.error(
+            { notifErr, downloadId },
+            "[ImportManager] Failed to create auto-delete notification"
+          )
+        );
+    }
+  }
+
   async processImport(downloadId: string, remoteDownloadPath: string): Promise<void> {
     const download = await this.storage.getGameDownload(downloadId);
     if (!download) {
@@ -181,32 +258,11 @@ export class ImportManager {
       const downloaderName = resolved.downloaderName;
 
       logger.debug({ localPath }, "[ImportManager] Checking path accessibility");
-      if (!(await fs.pathExists(localPath))) {
-        const retries = (this.pathRetryCount.get(downloadId) ?? 0) + 1;
-        if (retries < MAX_PATH_RETRY) {
-          this.pathRetryCount.set(downloadId, retries);
-          logger.warn(
-            {
-              localPath,
-              downloaderName,
-              remoteDownloadPath,
-              retry: retries,
-              maxRetry: MAX_PATH_RETRY,
-            },
-            "[ImportManager] Path not accessible — retrying next cycle"
-          );
-          await this.storage.updateGameDownloadStatus(downloadId, "downloading");
-          return;
-        }
-        this.pathRetryCount.delete(downloadId);
-        logger.warn(
-          { localPath, downloaderName, remoteDownloadPath },
-          "[ImportManager] Path not accessible after retries — check path mappings under Settings → Path Mappings"
-        );
-        await this.storage.updateGameDownloadStatus(downloadId, "manual_review_required");
+      if (
+        !(await this.verifyLocalPath(downloadId, localPath, { downloaderName, remoteDownloadPath }))
+      ) {
         return;
       }
-      this.pathRetryCount.delete(downloadId);
 
       processingPath = config.autoUnpack ? await this.extractIfArchive(localPath) : localPath;
 
@@ -251,40 +307,7 @@ export class ImportManager {
         config.autoDeleteAfterImport &&
         (config.transferMode === "copy" || config.transferMode === "move")
       ) {
-        const downloader = await this.storage.getDownloader(download.downloaderId);
-        if (!downloader) {
-          logger.warn(
-            { downloadId, downloaderId: download.downloaderId },
-            "[ImportManager] Auto-delete skipped — downloader not found"
-          );
-        } else if (!download.downloadHash) {
-          logger.warn({ downloadId }, "[ImportManager] Auto-delete skipped — download has no hash");
-        } else {
-          const result = await DownloaderManager.removeDownload(
-            downloader,
-            download.downloadHash,
-            true
-          );
-          if (!result.success) {
-            logger.warn(
-              { downloadId, downloadHash: download.downloadHash, reason: result.message },
-              "[ImportManager] Auto-delete after import failed"
-            );
-            await this.storage
-              .addNotification({
-                userId: game.userId ?? "",
-                type: "warning",
-                title: "Auto-delete failed",
-                message: `"${game.title}" was imported successfully, but removing it from the download client failed: ${result.message ?? "unknown error"}. Please remove it manually.`,
-              })
-              .catch((notifErr) =>
-                logger.error(
-                  { notifErr, downloadId },
-                  "[ImportManager] Failed to create auto-delete notification"
-                )
-              );
-          }
-        }
+        await this.performAutoDelete(downloadId, download, game);
       }
     } catch (err) {
       logger.error({ err, downloadId }, "[ImportManager] Import failed");
@@ -309,7 +332,7 @@ export class ImportManager {
     if (!downloader) return undefined;
 
     const details = await DownloaderManager.getDownloadDetails(downloader, download.downloadHash);
-    if (!details || !details.downloadDir) return undefined;
+    if (!details?.downloadDir) return undefined;
 
     const remotePath = `${details.downloadDir}/${details.name}`;
     const remoteHost = this.extractRemoteHost(downloader.url);

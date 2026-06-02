@@ -431,7 +431,7 @@ export default function ImportSettings() {
                       'If Questarr cannot determine the correct destination — for example, because the platform slug is unknown — the download is flagged as "manual review required". You can resolve it from the Downloads page.',
                     ],
                   ].map(([title, desc], i) => (
-                    <li key={i} className="flex gap-3">
+                    <li key={title} className="flex gap-3">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                         {i + 1}
                       </span>
@@ -508,7 +508,7 @@ export default function ImportSettings() {
                     },
                     {
                       name: "Library Root",
-                      desc: "Destination folder for imported games. Example: /data/library or D:\\Games.",
+                      desc: String.raw`Destination folder for imported games. Example: /data/library or D:\Games.`,
                     },
                     {
                       name: "Transfer Mode",
@@ -602,7 +602,7 @@ export default function ImportSettings() {
                       </p>
                       <ol className="space-y-1 pl-1">
                         {steps.map((step, i) => (
-                          <li key={i} className="flex gap-2 text-muted-foreground">
+                          <li key={step} className="flex gap-2 text-muted-foreground">
                             <span className="text-xs font-semibold text-primary mt-0.5 shrink-0">
                               {i + 1}.
                             </span>

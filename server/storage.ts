@@ -265,8 +265,8 @@ export class MemStorage implements IStorage {
   private xrelNotified: Map<string, XrelNotifiedRelease>;
   private rssFeeds: Map<string, RssFeed>;
   private rssFeedItems: Map<string, RssFeedItem>;
-  private pathMappings: Map<string, PathMapping>;
-  private platformMappings: Map<string, PlatformMapping>;
+  private readonly pathMappings: Map<string, PathMapping>;
+  private readonly platformMappings: Map<string, PlatformMapping>;
   private releaseBlacklists: Map<string, ReleaseBlacklist>;
 
   constructor() {
@@ -742,7 +742,7 @@ export class MemStorage implements IStorage {
     const download = this.gameDownloads.get(id);
     if (download && userId !== undefined) {
       const game = this.games.get(download.gameId);
-      if (!game || game.userId !== userId) return undefined;
+      if (game?.userId !== userId) return undefined;
     }
     return download;
   }
@@ -1100,7 +1100,7 @@ export class MemStorage implements IStorage {
       ...existing,
       ...updates,
       remoteHost:
-        updates.remoteHost !== undefined ? (updates.remoteHost ?? null) : existing.remoteHost,
+        updates.remoteHost === undefined ? existing.remoteHost : (updates.remoteHost ?? null),
     };
     this.pathMappings.set(id, updated);
     return updated;

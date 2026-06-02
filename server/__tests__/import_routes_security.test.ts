@@ -98,10 +98,12 @@ describe("importRouter confirmImport security", () => {
   it("does not escape root via backslash separator traversal on non-Windows", async () => {
     const app = createApp();
 
-    const response = await request(app).post("/api/imports/dl-4/confirm").send({
-      strategy: "pc",
-      proposedPath: "..\\..\\etc\\passwd",
-    });
+    const response = await request(app)
+      .post("/api/imports/dl-4/confirm")
+      .send({
+        strategy: "pc",
+        proposedPath: String.raw`..\..\etc\passwd`,
+      });
 
     if (response.status === 400) {
       expect(response.body.error).toMatch(/invalid proposed path/i);

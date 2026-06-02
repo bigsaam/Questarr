@@ -37,7 +37,7 @@ export default function ImportReviewModal({
   onOpenChange,
   downloadId,
   downloadTitle,
-}: ImportReviewModalProps) {
+}: Readonly<ImportReviewModalProps>) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,7 +71,7 @@ export default function ImportReviewModal({
       planApplied.current = false;
       setSourcePath("");
       setDestinationPath(importConfig?.libraryRoot ?? "");
-      setTransferMode((importConfig?.transferMode as typeof transferMode) ?? "move");
+      setTransferMode(importConfig?.transferMode ?? "move");
       setUnpackArchive(false);
     }
   }, [open, downloadId, importConfig?.libraryRoot, importConfig?.transferMode]);

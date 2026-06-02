@@ -187,12 +187,14 @@ export function PathMappingSettings() {
   };
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
-  const selectedDownloaderValue =
-    formState.remoteHost === null
-      ? ANY_DOWNLOADER_VALUE
-      : downloaderLabelByHost.has(formState.remoteHost)
-        ? formState.remoteHost
-        : UNAVAILABLE_DOWNLOADER_VALUE;
+  let selectedDownloaderValue: string;
+  if (formState.remoteHost === null) {
+    selectedDownloaderValue = ANY_DOWNLOADER_VALUE;
+  } else if (downloaderLabelByHost.has(formState.remoteHost)) {
+    selectedDownloaderValue = formState.remoteHost;
+  } else {
+    selectedDownloaderValue = UNAVAILABLE_DOWNLOADER_VALUE;
+  }
 
   if (isLoading) return <Loader2 className="h-6 w-6 animate-spin" />;
 

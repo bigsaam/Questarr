@@ -73,7 +73,7 @@ export default function PendingImportsCard() {
                     {item.createdAt &&
                       (() => {
                         const d = new Date(item.createdAt);
-                        return isNaN(d.getTime())
+                        return Number.isNaN(d.getTime())
                           ? null
                           : formatDistanceToNow(d, { addSuffix: true });
                       })()}

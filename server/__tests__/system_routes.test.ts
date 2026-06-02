@@ -23,23 +23,23 @@ vi.mock("fs-extra", () => ({
 
 import { systemRouter } from "../routes/system.js";
 
+function createApp(withUser = true) {
+  const app = express();
+  app.use((req, _res, next) => {
+    if (withUser) {
+      (req as express.Request & { user?: { id: string } }).user = { id: "u1" };
+    }
+    next();
+  });
+  app.use("/api/system", systemRouter);
+  return app;
+}
+
 describe("systemRouter /browse", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockStorage.getImportConfig.mockResolvedValue({ libraryRoot: "/data" });
   });
-
-  function createApp(withUser = true) {
-    const app = express();
-    app.use((req, _res, next) => {
-      if (withUser) {
-        (req as express.Request & { user?: { id: string } }).user = { id: "u1" };
-      }
-      next();
-    });
-    app.use("/api/system", systemRouter);
-    return app;
-  }
 
   it("returns 401 when user is missing", async () => {
     const app = createApp(false);
@@ -53,7 +53,7 @@ describe("systemRouter /browse", () => {
     const winDrive = await request(app).get("/api/system/browse?path=C:/Windows");
     expect(winDrive.status).toBe(400);
 
-    const uncPath = await request(app).get("/api/system/browse?path=\\\\server\\share");
+    const uncPath = await request(app).get(String.raw`/api/system/browse?path=\\server\share`);
     expect(uncPath.status).toBe(400);
   });
 

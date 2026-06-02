@@ -371,19 +371,13 @@ export class SABnzbdClient implements DownloaderClient {
         case "paused":
           status = "paused";
           break;
-        case "verifying":
-          status = "repairing"; // Integrity check — file not ready yet
-          repairStatus = "repairing";
-          break;
+        case "verifying": // Integrity check — file not ready yet
         case "repairing":
           status = "repairing";
           repairStatus = "repairing";
           break;
         case "extracting":
         case "unpacking":
-          status = "unpacking";
-          unpackStatus = "unpacking";
-          break;
         case "running": // Post-processing script running after extraction
         case "moving":
           status = "unpacking";
@@ -423,6 +417,20 @@ export class SABnzbdClient implements DownloaderClient {
     }
   }
 
+  private mapHistoryItemStatus(itemStatus: string): {
+    status: DownloadStatus["status"];
+    repairStatus: DownloadStatus["repairStatus"];
+    unpackStatus: DownloadStatus["unpackStatus"];
+  } {
+    if (itemStatus === "Completed") {
+      return { status: "completed", repairStatus: "good", unpackStatus: "completed" };
+    }
+    if (itemStatus === "Failed") {
+      return { status: "error", repairStatus: "failed", unpackStatus: undefined };
+    }
+    return { status: "paused", repairStatus: undefined, unpackStatus: undefined };
+  }
+
   private async getFromHistory(id: string): Promise<DownloadDetails | null> {
     // Try with nzo_ids filter first (optimization). Some SABnzbd versions ignore
     // this parameter and return all history, or return empty slots — in that case
@@ -454,21 +462,7 @@ export class SABnzbdClient implements DownloaderClient {
           return null;
         }
 
-        let status: DownloadStatus["status"];
-        let repairStatus: DownloadStatus["repairStatus"];
-        let unpackStatus: DownloadStatus["unpackStatus"];
-
-        if (item.status === "Completed") {
-          status = "completed";
-          repairStatus = "good";
-          unpackStatus = "completed";
-        } else if (item.status === "Failed") {
-          status = "error";
-          repairStatus = "failed";
-        } else {
-          status = "paused";
-        }
-
+        const { status, repairStatus, unpackStatus } = this.mapHistoryItemStatus(item.status);
         return {
           id: item.nzo_id,
           name: item.name,
