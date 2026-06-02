@@ -59,7 +59,7 @@ export function FileBrowser({
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const data = await res.json();
         setData(data);
-      } catch (err) {
+      } catch {
         if (attemptFallback && root !== undefined) {
           // Fall back to browsing without the explicit root (uses library root)
           try {

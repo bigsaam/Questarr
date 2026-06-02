@@ -160,10 +160,10 @@ describe("safeFetch", () => {
 
   it("should revalidate redirect targets before following them", async () => {
     vi.mocked(dns.lookup as unknown as import("dns").LookupAddress[]).mockResolvedValueOnce([
-      { address: "142.250.185.46", family: 4 },
+      { address: "142.250.185.46", family: 4 }, // NOSONAR
     ]);
     vi.mocked(dns.lookup as unknown as import("dns").LookupAddress[]).mockResolvedValueOnce([
-      { address: "169.254.169.254", family: 4 },
+      { address: "169.254.169.254", family: 4 }, // NOSONAR
     ]);
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, {
