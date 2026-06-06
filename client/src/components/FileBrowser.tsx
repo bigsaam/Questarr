@@ -173,6 +173,7 @@ export function FileBrowser({
           <Button
             variant="ghost"
             size="sm"
+            aria-label="Navigate up"
             disabled={!data?.parent || currentPath === "/"}
             onClick={handleUp}
           >
