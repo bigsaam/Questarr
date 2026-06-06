@@ -612,33 +612,46 @@ export async function checkDownloadStatus() {
               "Download completed"
             );
 
-            // Update DB - mark as completed
-            await storage.updateGameDownloadStatus(download.id, "completed");
+            // Fetch game title for notification
+            const game = await storage.getGame(download.gameId);
+            const gameTitle = game ? game.title : download.downloadTitle;
+            const importConfig = await storage.getImportConfig(game?.userId ?? undefined);
 
-            // Update Game status to 'owned' (which means we have the files)
-            await storage.updateGameStatus(download.gameId, { status: "owned" });
+            let shouldSendCompletionNotification = true;
 
-            igdbLogger.info(
-              { gameId: download.gameId, downloadId: download.id },
-              "Updated game status to 'owned' after completion"
-            );
-
-            const details = await DownloaderManager.getDownloadDetails(
-              downloader,
-              download.downloadHash
-            );
-            if (details?.downloadDir) {
-              const remoteImportPath = buildRemoteImportPath(details.downloadDir, details.name);
-              void importManager.processImport(download.id, remoteImportPath).catch((error) => {
-                igdbLogger.error(
-                  { error, downloadId: download.id, remoteImportPath },
-                  "Failed to start import pipeline after download completion"
+            if (importConfig.enablePostProcessing) {
+              const details = await DownloaderManager.getDownloadDetails(
+                downloader,
+                download.downloadHash
+              );
+              if (details?.downloadDir) {
+                const remoteImportPath = buildRemoteImportPath(details.downloadDir, details.name);
+                try {
+                  await importManager.processImport(download.id, remoteImportPath);
+                } catch (error) {
+                  igdbLogger.error(
+                    { error, downloadId: download.id, remoteImportPath },
+                    "Failed to start import pipeline after download completion"
+                  );
+                }
+              } else {
+                shouldSendCompletionNotification = false;
+                await storage.updateGameDownloadStatus(download.id, "manual_review_required");
+                igdbLogger.warn(
+                  { downloadId: download.id, downloadHash: download.downloadHash, downloaderId },
+                  "Download completed but no remote path was available for import"
                 );
-              });
+              }
             } else {
-              igdbLogger.warn(
-                { downloadId: download.id, downloadHash: download.downloadHash, downloaderId },
-                "Download completed but no remote path was available for import"
+              // Update DB - mark as completed
+              await storage.updateGameDownloadStatus(download.id, "completed");
+
+              // Update Game status to 'owned' (which means we have the files)
+              await storage.updateGameStatus(download.gameId, { status: "owned" });
+
+              igdbLogger.info(
+                { gameId: download.gameId, downloadId: download.id },
+                "Updated game status to 'owned' after completion"
               );
             }
 
@@ -646,15 +659,11 @@ export async function checkDownloadStatus() {
             // TODO: scope this to a per-user socket room once multi-user socket auth is wired up.
             notifyUser("downloadUpdate", download.gameId);
 
-            // Fetch game title for notification
-            const game = await storage.getGame(download.gameId);
-            const gameTitle = game ? game.title : download.downloadTitle;
-
             // Send notification
             const message = `Download finished for ${gameTitle}`;
             const dlSettings = await storage.getUserSettings(game?.userId ?? "");
             const dlPrefs = resolvePrefs(dlSettings);
-            if (dlPrefs.downloadCompleted.inApp) {
+            if (shouldSendCompletionNotification && dlPrefs.downloadCompleted.inApp) {
               const notification = await storage.addNotification({
                 type: "success",
                 title: "Download Completed",

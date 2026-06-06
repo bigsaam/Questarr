@@ -24,6 +24,8 @@ const mockUpdateGameDownloadStatus = vi.fn();
 const mockUpdateGameStatus = vi.fn();
 const mockGetGame = vi.fn();
 const mockAddNotification = vi.fn();
+const mockGetUserSettings = vi.fn();
+const mockGetImportConfig = vi.fn();
 
 vi.mock("../storage.js", () => ({
   storage: {
@@ -33,6 +35,8 @@ vi.mock("../storage.js", () => ({
     updateGameStatus: mockUpdateGameStatus,
     getGame: mockGetGame,
     addNotification: mockAddNotification,
+    getUserSettings: mockGetUserSettings,
+    getImportConfig: mockGetImportConfig,
   },
 }));
 
@@ -114,8 +118,15 @@ const baseDownload = {
 describe("Cron - checkDownloadStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetGame.mockResolvedValue({ id: "game-1", title: "Test Game", status: "downloading" });
+    mockGetGame.mockResolvedValue({
+      id: "game-1",
+      title: "Test Game",
+      status: "downloading",
+      userId: "user-1",
+    });
     mockAddNotification.mockResolvedValue({ id: "notif-1" });
+    mockGetUserSettings.mockResolvedValue({ notificationPreferences: null });
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: false });
     mockUpdateGameDownloadStatus.mockResolvedValue(undefined);
     mockUpdateGameStatus.mockResolvedValue(undefined);
     mockGetDownloadDetails.mockResolvedValue(null);
@@ -150,6 +161,7 @@ describe("Cron - checkDownloadStatus", () => {
   it("should fall back to getDownloadStatus when a download is absent from getAllDownloads", async () => {
     mockGetDownloadingGameDownloads.mockResolvedValue([baseDownload]);
     mockGetDownloader.mockResolvedValue(baseDownloader);
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: true });
 
     // Bulk getAllDownloads returns empty (download moved to SABnzbd history)
     mockGetAllDownloads.mockResolvedValue([]);
@@ -176,14 +188,15 @@ describe("Cron - checkDownloadStatus", () => {
     await checkDownloadStatus();
 
     expect(mockGetDownloadStatus).toHaveBeenCalledWith(baseDownloader, baseDownload.downloadHash);
-    // Should mark as completed via the normal completion path
-    expect(mockUpdateGameDownloadStatus).toHaveBeenCalledWith(baseDownload.id, "completed");
-    expect(mockUpdateGameStatus).toHaveBeenCalledWith(baseDownload.gameId, { status: "owned" });
     expect(mockGetDownloadDetails).toHaveBeenCalledWith(baseDownloader, baseDownload.downloadHash);
     expect(mockProcessImport).toHaveBeenCalledWith(
       baseDownload.id,
       "/downloads/complete/Test Game"
     );
+    expect(mockUpdateGameDownloadStatus).not.toHaveBeenCalledWith(baseDownload.id, "completed");
+    expect(mockUpdateGameStatus).not.toHaveBeenCalledWith(baseDownload.gameId, {
+      status: "owned",
+    });
   });
 
   it("should mark as completed via error path when both bulk and individual checks return null", async () => {
@@ -208,6 +221,7 @@ describe("Cron - checkDownloadStatus", () => {
   it("should not call getDownloadStatus when the bulk map already contains the download", async () => {
     mockGetDownloadingGameDownloads.mockResolvedValue([baseDownload]);
     mockGetDownloader.mockResolvedValue(baseDownloader);
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: true });
 
     mockGetAllDownloads.mockResolvedValue([
       {
@@ -232,16 +246,17 @@ describe("Cron - checkDownloadStatus", () => {
     await checkDownloadStatus();
 
     expect(mockGetDownloadStatus).not.toHaveBeenCalled();
-    expect(mockUpdateGameDownloadStatus).toHaveBeenCalledWith(baseDownload.id, "completed");
     expect(mockProcessImport).toHaveBeenCalledWith(
       baseDownload.id,
       "/downloads/complete/Test Game"
     );
+    expect(mockUpdateGameDownloadStatus).not.toHaveBeenCalledWith(baseDownload.id, "completed");
   });
 
-  it("should skip import when the downloader cannot provide a completed download path", async () => {
+  it("should move completed downloads to manual review when post-processing cannot resolve a path", async () => {
     mockGetDownloadingGameDownloads.mockResolvedValue([baseDownload]);
     mockGetDownloader.mockResolvedValue(baseDownloader);
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: true });
     mockGetAllDownloads.mockResolvedValue([
       {
         id: "SABnzbd_nzo_abc123",
@@ -264,11 +279,19 @@ describe("Cron - checkDownloadStatus", () => {
     await checkDownloadStatus();
 
     expect(mockProcessImport).not.toHaveBeenCalled();
+    expect(mockUpdateGameDownloadStatus).toHaveBeenCalledWith(
+      baseDownload.id,
+      "manual_review_required"
+    );
+    expect(mockUpdateGameStatus).not.toHaveBeenCalledWith(baseDownload.gameId, {
+      status: "owned",
+    });
   });
 
   it("should not duplicate the release name when the downloader path already points at it", async () => {
     mockGetDownloadingGameDownloads.mockResolvedValue([baseDownload]);
     mockGetDownloader.mockResolvedValue(baseDownloader);
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: true });
     mockGetAllDownloads.mockResolvedValue([
       {
         id: "SABnzbd_nzo_abc123",
@@ -295,5 +318,27 @@ describe("Cron - checkDownloadStatus", () => {
       baseDownload.id,
       "/downloads/complete/Test Game"
     );
+  });
+
+  it("should still mark a completed download as owned when post-processing is disabled", async () => {
+    mockGetDownloadingGameDownloads.mockResolvedValue([baseDownload]);
+    mockGetDownloader.mockResolvedValue(baseDownloader);
+    mockGetImportConfig.mockResolvedValue({ enablePostProcessing: false });
+    mockGetAllDownloads.mockResolvedValue([
+      {
+        id: "SABnzbd_nzo_abc123",
+        name: "Test Game",
+        status: "completed",
+        progress: 100,
+        downloadType: "usenet",
+      },
+    ]);
+
+    await checkDownloadStatus();
+
+    expect(mockUpdateGameDownloadStatus).toHaveBeenCalledWith(baseDownload.id, "completed");
+    expect(mockUpdateGameStatus).toHaveBeenCalledWith(baseDownload.gameId, { status: "owned" });
+    expect(mockGetDownloadDetails).not.toHaveBeenCalled();
+    expect(mockProcessImport).not.toHaveBeenCalled();
   });
 });

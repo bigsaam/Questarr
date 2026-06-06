@@ -348,6 +348,71 @@ describe("transmission remaining regression coverage", () => {
     expect(details.trackers).toEqual([expect.objectContaining({ status: "inactive" })]);
   });
 
+  it("passes Transmission hash ids through unchanged for detail and control RPC calls", async () => {
+    const client = new TransmissionClient(createDownloader());
+    const privateClient = client as unknown as {
+      makeRequest(
+        method: string,
+        arguments_: Record<string, unknown>
+      ): Promise<{
+        result?: string;
+        arguments: Record<string, unknown>;
+      }>;
+    };
+    const makeRequestSpy = vi.spyOn(privateClient, "makeRequest");
+
+    makeRequestSpy
+      .mockResolvedValueOnce({
+        result: "success",
+        arguments: {
+          torrents: [
+            {
+              id: 9,
+              hashString: "hash-9",
+              name: "Hashed",
+              status: 4,
+              percentDone: 0.5,
+              rateDownload: 1,
+              rateUpload: 0,
+              eta: 60,
+              totalSize: 100,
+              downloadedEver: 50,
+              peersSendingToUs: 2,
+              peersGettingFromUs: 1,
+              uploadRatio: 0.5,
+              errorString: "",
+              downloadDir: "/downloads",
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({ result: "success", arguments: {} })
+      .mockResolvedValueOnce({ result: "success", arguments: {} })
+      .mockResolvedValueOnce({ result: "success", arguments: {} });
+
+    await client.getDownloadDetails("hash-9");
+    await client.pauseDownload("hash-9");
+    await client.resumeDownload("hash-9");
+    await client.removeDownload("hash-9", true);
+
+    expect(makeRequestSpy.mock.calls[0]).toEqual([
+      "torrent-get",
+      expect.objectContaining({ ids: ["hash-9"] }),
+    ]);
+    expect(makeRequestSpy.mock.calls[1]).toEqual([
+      "torrent-stop",
+      expect.objectContaining({ ids: ["hash-9"] }),
+    ]);
+    expect(makeRequestSpy.mock.calls[2]).toEqual([
+      "torrent-start",
+      expect.objectContaining({ ids: ["hash-9"] }),
+    ]);
+    expect(makeRequestSpy.mock.calls[3]).toEqual([
+      "torrent-remove",
+      expect.objectContaining({ ids: ["hash-9"], "delete-local-data": true }),
+    ]);
+  });
+
   it("covers Transmission request retry and direct error branches", async () => {
     const client = new TransmissionClient(createDownloader()) as unknown as {
       makeRequest(method: string, arguments_: unknown): Promise<unknown>;

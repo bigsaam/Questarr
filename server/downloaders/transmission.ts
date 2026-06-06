@@ -321,7 +321,7 @@ export class TransmissionClient implements DownloaderClient {
   async getDownloadStatus(id: string): Promise<DownloadStatus | null> {
     try {
       const response = await this.makeRequest("torrent-get", {
-        ids: [/^\d+$/.test(id) ? Number.parseInt(id) : id],
+        ids: [this.resolveTorrentId(id)],
         fields: [
           "id",
           "name",
@@ -354,7 +354,7 @@ export class TransmissionClient implements DownloaderClient {
   async getDownloadDetails(id: string): Promise<DownloadDetails | null> {
     try {
       const response = await this.makeRequest("torrent-get", {
-        ids: [parseInt(id)],
+        ids: [this.resolveTorrentId(id)],
         fields: [
           "id",
           "name",
@@ -427,7 +427,7 @@ export class TransmissionClient implements DownloaderClient {
 
   async pauseDownload(id: string): Promise<{ success: boolean; message: string }> {
     try {
-      await this.makeRequest("torrent-stop", { ids: [parseInt(id)] });
+      await this.makeRequest("torrent-stop", { ids: [this.resolveTorrentId(id)] });
       return { success: true, message: "Download paused successfully" };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -437,7 +437,7 @@ export class TransmissionClient implements DownloaderClient {
 
   async resumeDownload(id: string): Promise<{ success: boolean; message: string }> {
     try {
-      await this.makeRequest("torrent-start", { ids: [parseInt(id)] });
+      await this.makeRequest("torrent-start", { ids: [this.resolveTorrentId(id)] });
       return { success: true, message: "Download resumed successfully" };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -451,7 +451,7 @@ export class TransmissionClient implements DownloaderClient {
   ): Promise<{ success: boolean; message: string }> {
     try {
       await this.makeRequest("torrent-remove", {
-        ids: [parseInt(id)],
+        ids: [this.resolveTorrentId(id)],
         "delete-local-data": deleteFiles,
       });
       return { success: true, message: "Download removed successfully" };
@@ -627,6 +627,10 @@ export class TransmissionClient implements DownloaderClient {
       totalPeers: torrent.peersConnected,
       connectedPeers: torrent.peersConnected,
     };
+  }
+
+  private resolveTorrentId(id: string): number | string {
+    return /^\d+$/.test(id) ? Number.parseInt(id, 10) : id;
   }
 
   // Transmission API response structure
