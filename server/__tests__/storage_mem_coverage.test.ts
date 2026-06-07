@@ -311,10 +311,12 @@ describe("MemStorage - Game update methods", () => {
   });
 
   it("getWantedGamesGroupedByUser groups wanted non-hidden games", async () => {
-    await storage.addGame(makeGame({ userId: "u1", status: "wanted", title: "W1" }));
-    await storage.addGame(makeGame({ userId: "u1", status: "owned", title: "O1" }));
-    await storage.addGame(makeGame({ userId: "u1", status: "wanted", hidden: true, title: "H" }));
-    const grouped = await storage.getWantedGamesGroupedByUser();
+    const isolated = new MemStorage();
+    await isolated.registerSetupUser(makeUser());
+    await isolated.addGame(makeGame({ userId: "u1", status: "wanted", title: "W1" }));
+    await isolated.addGame(makeGame({ userId: "u1", status: "owned", title: "O1" }));
+    await isolated.addGame(makeGame({ userId: "u1", status: "wanted", hidden: true, title: "H" }));
+    const grouped = await isolated.getWantedGamesGroupedByUser();
     expect(grouped.get("u1")).toHaveLength(1);
     expect(grouped.get("u1")?.[0].title).toBe("W1");
   });

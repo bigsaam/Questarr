@@ -33,7 +33,8 @@ export interface ImportStrategy {
     sourcePath: string,
     game: Game,
     targetRoot: string,
-    config: ImportConfig
+    config: ImportConfig,
+    platformDir?: string
   ): Promise<ImportReview>;
   executeImport(review: ImportReview, transferMode: TransferMode): Promise<ImportResult>;
 }
@@ -114,12 +115,13 @@ export class PCImportStrategy implements ImportStrategy {
     sourcePath: string,
     game: Game,
     targetRoot: string,
-    config: ImportConfig
+    config: ImportConfig,
+    platformDir?: string
   ): Promise<ImportReview> {
     const stats = await fs.stat(sourcePath);
     const cleanTitle = sanitizeFsName(game.title);
     const ext = stats.isDirectory() ? "" : path.extname(sourcePath);
-    const destination = path.join(targetRoot, "PC", cleanTitle + ext);
+    const destination = path.join(targetRoot, platformDir ?? "PC", cleanTitle + ext);
 
     const destinationExists = await fs.pathExists(destination);
     const needsReview = destinationExists && !config.overwriteExisting;

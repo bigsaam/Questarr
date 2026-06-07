@@ -320,6 +320,7 @@ importRouter.patch("/config", async (req, res) => {
     const settingsPatch = {
       enablePostProcessing: newConfig.enablePostProcessing,
       autoUnpack: newConfig.autoUnpack,
+      autoDeleteAfterImport: newConfig.autoDeleteAfterImport,
       renamePattern: newConfig.renamePattern,
       overwriteExisting: newConfig.overwriteExisting,
       transferMode: newConfig.transferMode,

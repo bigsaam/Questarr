@@ -40,6 +40,35 @@ const RELEASE_PLATFORM_TO_IGDB_ID: Record<string, number> = {
   pc: 6,
 };
 
+const PLATFORM_FOLDER_NAMES: Record<string, string> = {
+  nes: "NES",
+  snes: "SNES",
+  n64: "N64",
+  gamecube: "GameCube",
+  wii: "Wii",
+  gb: "Game Boy",
+  gbc: "Game Boy Color",
+  gba: "Game Boy Advance",
+  nds: "Nintendo DS",
+  "3ds": "Nintendo 3DS",
+  switch: "Switch",
+  ps1: "PlayStation",
+  ps2: "PS2",
+  ps3: "PS3",
+  psp: "PSP",
+  "game gear": "Game Gear",
+  "master system": "Master System",
+  "mega drive": "Mega Drive",
+  dreamcast: "Dreamcast",
+  "atari 2600": "Atari 2600",
+  "neo geo": "Neo Geo",
+  pc: "PC",
+};
+
+const IGDB_ID_TO_PLATFORM_KEY: Record<number, string> = Object.fromEntries(
+  Object.entries(RELEASE_PLATFORM_TO_IGDB_ID).map(([key, id]) => [id, key])
+);
+
 const MAX_PATH_RETRY = 5;
 
 export class ImportManager {
@@ -88,10 +117,38 @@ export class ImportManager {
     return RELEASE_PLATFORM_TO_IGDB_ID[releasePlatformKey];
   }
 
+  private resolvePlatformFolderName(downloadTitle: string, game: { platforms?: unknown }): string {
+    const key = this.getReleasePlatformKey(downloadTitle);
+    if (key && PLATFORM_FOLDER_NAMES[key]) return PLATFORM_FOLDER_NAMES[key];
+
+    const igdbId = this.getPrimaryPlatformId(game);
+    if (igdbId !== undefined) {
+      const igdbKey = IGDB_ID_TO_PLATFORM_KEY[igdbId];
+      if (igdbKey && PLATFORM_FOLDER_NAMES[igdbKey]) return PLATFORM_FOLDER_NAMES[igdbKey];
+    }
+
+    return "PC";
+  }
+
   private async extractIfArchive(sourcePath: string): Promise<string> {
-    if (!this.archiveService.isArchive(sourcePath)) return sourcePath;
+    if (this.archiveService.isArchive(sourcePath)) {
+      const extractDir = sourcePath + "_extracted";
+      await this.archiveService.extract(sourcePath, extractDir);
+      return extractDir;
+    }
+
+    // Directory: scan for archive files inside (handles torrent dirs containing .rar etc.)
+    const stats = await fs.stat(sourcePath);
+    if (!stats.isDirectory()) return sourcePath;
+
+    const entries = await fs.readdir(sourcePath);
+    const archiveEntries = entries.filter((name) => this.archiveService.isArchive(name)).sort();
+    if (archiveEntries.length === 0) return sourcePath;
+
+    // 7zip handles multi-part archives when given the first part
+    const mainArchive = path.join(sourcePath, archiveEntries[0]);
     const extractDir = sourcePath + "_extracted";
-    await this.archiveService.extract(sourcePath, extractDir);
+    await this.archiveService.extract(mainArchive, extractDir);
     return extractDir;
   }
 
@@ -283,7 +340,14 @@ export class ImportManager {
 
       await fs.ensureDir(libraryRoot);
 
-      const plan = await strategy.planImport(processingPath, game, libraryRoot, config);
+      const platformDir = this.resolvePlatformFolderName(download.downloadTitle || "", game);
+      const plan = await strategy.planImport(
+        processingPath,
+        game,
+        libraryRoot,
+        config,
+        platformDir
+      );
 
       if (plan.needsReview) {
         logger.info(
@@ -361,12 +425,19 @@ export class ImportManager {
       // Source resolution failed — still return a proposed path based on game title
     }
 
-    const fallbackProposedPath = path.join(libraryRoot, "PC", sanitizeFsName(game.title));
+    const platformDir = this.resolvePlatformFolderName(download.downloadTitle || "", game);
+    const fallbackProposedPath = path.join(libraryRoot, platformDir, sanitizeFsName(game.title));
 
     if (resolvedOriginalPath) {
       try {
         const strategy = new PCImportStrategy();
-        const plan = await strategy.planImport(resolvedOriginalPath, game, libraryRoot, config);
+        const plan = await strategy.planImport(
+          resolvedOriginalPath,
+          game,
+          libraryRoot,
+          config,
+          platformDir
+        );
         return { originalPath: resolvedOriginalPath, proposedPath: plan.proposedPath };
       } catch {
         // Source not yet accessible (e.g. still in incomplete folder) — path is known but can't be stat'd

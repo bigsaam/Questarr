@@ -71,8 +71,10 @@ export const userSettings = sqliteTable("user_settings", {
 
 // ... existing code ...
 
-export const insertPathMappingSchema = createInsertSchema(pathMappings).omit({
-  id: true,
+export const insertPathMappingSchema = z.object({
+  remotePath: z.string().min(1),
+  localPath: z.string().min(1),
+  remoteHost: z.string().nullable().optional(),
 });
 
 export const updatePathMappingSchema = z.object({
@@ -81,8 +83,9 @@ export const updatePathMappingSchema = z.object({
   remoteHost: z.string().min(1).nullable().optional(),
 });
 
-export const insertPlatformMappingSchema = createInsertSchema(platformMappings).omit({
-  id: true,
+export const insertPlatformMappingSchema = z.object({
+  igdbPlatformId: z.number().int(),
+  sourcePlatformName: z.string().min(1),
 });
 
 export type PathMapping = typeof pathMappings.$inferSelect;

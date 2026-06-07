@@ -744,7 +744,8 @@ describe("ImportManager", () => {
       "/local/downloads/game.zip",
       expect.anything(),
       expect.anything(),
-      expect.anything()
+      expect.anything(),
+      "PC"
     );
 
     planSpy.mockRestore();
