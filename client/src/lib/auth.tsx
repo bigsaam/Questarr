@@ -24,7 +24,7 @@ type FetchUserError = Error & { status?: number };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [needsSetup, setNeedsSetup] = useState(false);
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -56,15 +56,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [statusData]);
 
-  const { isLoading: isFetchingUser, data: meData } = useQuery({
-    queryKey: ["/api/auth/me", token],
+  const {
+    isLoading: isFetchingUser,
+    isFetched: hasFetchedUser,
+    data: meData,
+  } = useQuery({
+    queryKey: ["/api/auth/me"],
     queryFn: async () => {
       // Read token directly from localStorage for freshness
       const currentToken = localStorage.getItem("token");
-      if (!currentToken) return null;
+      const headers: Record<string, string> = {};
+      if (currentToken) {
+        headers.Authorization = `Bearer ${currentToken}`;
+      }
 
       const res = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${currentToken}` },
+        headers,
+        credentials: "include",
       });
 
       if (res.ok) {
@@ -72,9 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem("token");
-        setToken(null);
-        queryClient.clear();
+        if (currentToken) {
+          localStorage.removeItem("token");
+          setToken(null);
+        }
         return null;
       }
 
@@ -84,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error.status = res.status;
       throw error;
     },
-    enabled: !!token,
+    enabled: statusData?.hasUsers === true,
     retry: (failureCount, error) => {
       const status = (error as FetchUserError).status;
       if (typeof status === "number") {
@@ -146,7 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Redirect logic
   useEffect(() => {
-    if (isCheckingSetup || isFetchingUser) return;
+    const authenticatedUser = user ?? meData ?? null;
+
+    if (isCheckingSetup || isFetchingUser || (statusData?.hasUsers === true && !hasFetchedUser)) {
+      return;
+    }
 
     // Show error if setup check failed after retries
     if (setupCheckError) {
@@ -160,19 +173,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (needsSetup && location !== "/setup") {
       setLocation("/setup");
-    } else if (!needsSetup && !user && location !== "/login" && location !== "/setup") {
+    } else if (
+      !needsSetup &&
+      !authenticatedUser &&
+      location !== "/login" &&
+      location !== "/setup"
+    ) {
       setLocation("/login");
-    } else if (user && (location === "/login" || location === "/setup")) {
+    } else if (authenticatedUser && (location === "/login" || location === "/setup")) {
       setLocation("/");
     }
   }, [
     user,
+    meData,
     needsSetup,
     location,
     setLocation,
     isCheckingSetup,
     isFetchingUser,
+    hasFetchedUser,
     setupCheckError,
+    statusData,
     toast,
   ]);
 

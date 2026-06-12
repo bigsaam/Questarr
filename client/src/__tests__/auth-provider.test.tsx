@@ -4,7 +4,7 @@ import "@testing-library/jest-dom";
 import { render, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 const mockSetLocation = vi.fn();
 const mockToast = vi.fn();
@@ -40,6 +40,11 @@ function jsonResponse(status: number, body: unknown) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function AuthState() {
+  const { user } = useAuth();
+  return <div>{user?.username ?? "no-user"}</div>;
 }
 
 describe("AuthProvider /api/auth/me handling", () => {
@@ -83,6 +88,39 @@ describe("AuthProvider /api/auth/me handling", () => {
       (call) => String(call[0]) === "/api/auth/me"
     ).length;
     expect(meCalls).toBe(1);
+  });
+
+  it("authenticates proxy-auth users without a stored token", async () => {
+    localStorage.removeItem("token");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/auth/status") {
+        return jsonResponse(200, { hasUsers: true });
+      }
+      if (url === "/api/auth/me") {
+        expect(init?.headers).not.toHaveProperty("Authorization");
+        return jsonResponse(200, { id: "1", username: "sam" });
+      }
+      throw new Error(`Unhandled URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getByText } = render(
+      <Wrapper>
+        <AuthProvider>
+          <AuthState />
+        </AuthProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(getByText("sam")).toBeInTheDocument();
+    });
+
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(mockSetLocation).not.toHaveBeenCalledWith("/login");
   });
 
   it("clears stored token on 403 responses", async () => {
