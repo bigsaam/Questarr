@@ -1,7 +1,7 @@
 name: Deploy Web App
 
 on:
-  # Allow manual trigger for on-demand deployment
+  # Allow manual trigger for on-demand image builds
   workflow_dispatch:
     inputs:
       environment:
@@ -85,7 +85,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Get version from package.json
         id: package_version
