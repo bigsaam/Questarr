@@ -22,6 +22,15 @@ const envSchema = z.object({
       message:
         "JWT_SECRET is set to an insecure legacy default. Remove it to auto-generate, or set a strong random value.",
     }),
+  AUTHENTIK_PROXY_AUTH_ENABLED: z
+    .string()
+    .transform((val) => val === "true")
+    .optional(),
+  AUTHENTIK_PROXY_AUTH_USERNAME_HEADERS: z.string().optional(),
+  AUTHENTIK_PROXY_AUTH_SINGLE_USER_FALLBACK: z
+    .string()
+    .transform((val) => val === "true")
+    .optional(),
 
   // IGDB API configuration (optional, but required for game discovery features)
   IGDB_CLIENT_ID: z.string().optional(),
@@ -80,6 +89,13 @@ export const config = {
   },
   auth: {
     jwtSecret: env.JWT_SECRET,
+    authentikProxyAuthEnabled: env.AUTHENTIK_PROXY_AUTH_ENABLED ?? false,
+    authentikProxyAuthUsernameHeaders: env.AUTHENTIK_PROXY_AUTH_USERNAME_HEADERS
+      ? env.AUTHENTIK_PROXY_AUTH_USERNAME_HEADERS.split(",").map((header) =>
+          header.trim().toLowerCase()
+        )
+      : ["x-authentik-username", "x-authentik-name"],
+    authentikProxyAuthSingleUserFallback: env.AUTHENTIK_PROXY_AUTH_SINGLE_USER_FALLBACK ?? false,
   },
   igdb: {
     clientId: env.IGDB_CLIENT_ID,

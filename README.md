@@ -294,6 +294,14 @@ npm install
 2. **Configure environment variables in `.env`:**
    See the .env.example for available variables.
 
+   If Questarr is protected by an Authentik proxy/outpost, you can enable
+   header-based SSO with `AUTHENTIK_PROXY_AUTH_ENABLED=true`. The Authentik
+   username must match an existing local Questarr username. Only enable this
+   behind a trusted reverse proxy that strips client-supplied
+   `X-Authentik-*` headers. For single-user deployments, set
+   `AUTHENTIK_PROXY_AUTH_SINGLE_USER_FALLBACK=true` to use the only local
+   Questarr user when the Authentik header value does not match exactly.
+
 3. **Initialize the database:**
    This will run available migration files.
 

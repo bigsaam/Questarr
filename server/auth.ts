@@ -81,11 +81,62 @@ export async function generateToken(user: User) {
   });
 }
 
+function getHeaderValues(req: Request, headerNames: readonly string[]) {
+  const values: string[] = [];
+
+  for (const headerName of headerNames) {
+    const headerValue = req.headers[headerName];
+    if (Array.isArray(headerValue)) {
+      values.push(...headerValue.map((item) => item.trim()).filter(Boolean));
+    } else if (typeof headerValue === "string" && headerValue.trim().length > 0) {
+      values.push(headerValue.trim());
+    }
+  }
+
+  return values;
+}
+
+async function getAuthentikProxyUser(req: Request) {
+  if (!config.auth.authentikProxyAuthEnabled) return null;
+
+  const usernames = getHeaderValues(req, config.auth.authentikProxyAuthUsernameHeaders);
+  if (usernames.length === 0) return null;
+
+  for (const username of usernames) {
+    const user = await storage.getUserByUsername(username);
+    if (user) return user;
+  }
+
+  if (config.auth.authentikProxyAuthSingleUserFallback) {
+    const users = await storage.getAllUsers();
+    if (users.length === 1) {
+      logger.info(
+        "Authentik proxy user did not match a Questarr user; using single-user fallback: %s",
+        users[0].username
+      );
+      return users[0];
+    }
+  }
+
+  logger.warn("Authentik proxy user not found in Questarr: %s", usernames.join(", "));
+  return null;
+}
+
 /**
  * Optional authentication middleware. Sets req.user when a valid JWT is present
  * but never blocks the request — unauthenticated callers simply get no req.user.
  */
 export async function optionalAuthenticateToken(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const proxyUser = await getAuthentikProxyUser(req);
+    if (proxyUser) {
+      req.user = proxyUser;
+      return next();
+    }
+  } catch (error) {
+    logger.warn("Authentik proxy optional auth failed: %s", error);
+  }
+
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token) {
@@ -102,6 +153,16 @@ export async function optionalAuthenticateToken(req: Request, _res: Response, ne
 }
 
 export async function authenticateToken(req: Request, res: Response, next: NextFunction) {
+  try {
+    const proxyUser = await getAuthentikProxyUser(req);
+    if (proxyUser) {
+      req.user = proxyUser;
+      return next();
+    }
+  } catch (error) {
+    logger.warn("Authentik proxy auth failed: %s", error);
+  }
+
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
