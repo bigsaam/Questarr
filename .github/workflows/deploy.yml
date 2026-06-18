@@ -1,35 +1,8 @@
 name: Deploy Web App
 
 on:
-  # Allow manual trigger for on-demand image builds
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Deployment environment"
-        required: true
-        default: "test"
-        type: choice
-        options:
-          - production
-          - dev
-          - test
-      tag:
-        description: "Docker image tag (leave empty for auto-generated tag)"
-        required: false
-        default: ""
-      build_arm64:
-        description: "Build ARM64 image (slows down build)"
-        required: false
-        default: false
-        type: boolean
-      comment-id: # ← passed automatically by slash-command-dispatch
-        required: false
-      repository: # ← also passed automatically
-        required: false
-
-  # Run daily at midnight from the default branch (main) for dev builds
-  schedule:
-    - cron: "0 0 * * *"
+  push:
+    branches: [main, release/*, feat/authentik-proxy-auth]
 
 permissions:
   contents: read
@@ -38,7 +11,7 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'schedule' && 'dev' || inputs.environment || 'production' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -52,17 +25,15 @@ jobs:
       - name: Determine Environment
         id: env
         env:
-          EVENT_NAME: ${{ github.event_name }}
           GH_REF: ${{ github.ref }}
-          INPUT_ENVIRONMENT: ${{ inputs.environment }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          if [ "$EVENT_NAME" == "schedule" ]; then
+          if [ "$GH_REF" = "refs/heads/main" ]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
             echo "ENVIRONMENT=dev" >> $GITHUB_ENV
             echo "environment=dev" >> $GITHUB_OUTPUT
-          else
-            echo "ENVIRONMENT=${INPUT_ENVIRONMENT:-dev}" >> $GITHUB_ENV
-            echo "environment=${INPUT_ENVIRONMENT:-dev}" >> $GITHUB_OUTPUT
           fi
 
           # Normalize repository name to lowercase and strip owner for Docker Hub
@@ -74,7 +45,7 @@ jobs:
           echo "REPO_NAME_LC=$REPO_NAME_LC" >> $GITHUB_ENV
 
       - name: Set up QEMU
-        if: env.ENVIRONMENT == 'production' && inputs.build_arm64 == true
+        if: env.ENVIRONMENT == 'production'
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
@@ -108,9 +79,9 @@ jobs:
             ghcr.io/${{ github.repository }}
             doezer/${{ env.REPO_NAME_LC }}
           tags: |
-            type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
             type=raw,value=latest,enable=${{ env.ENVIRONMENT == 'production' }}
             type=raw,value=dev,enable=${{ env.ENVIRONMENT == 'dev' }}
+            type=raw,value=authentik-proxy-auth,enable=${{ github.ref_name == 'feat/authentik-proxy-auth' }}
             type=sha,prefix=${{ env.ENVIRONMENT }}-sha-,format=short,enable=${{ env.ENVIRONMENT != 'dev' }}
           labels: |
             org.opencontainers.image.title=Questarr
@@ -121,7 +92,7 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
-          platforms: ${{ (env.ENVIRONMENT == 'production' && inputs.build_arm64 == true) && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: ${{ env.ENVIRONMENT == 'production' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -162,12 +133,3 @@ jobs:
           echo "content<<EOF" >> $GITHUB_OUTPUT
           echo "$SUMMARY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Post result to PR
-        if: always() && inputs.comment-id != ''
-        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5
-        with:
-          token: ${{ secrets.PAT }}
-          repository: ${{ inputs.repository }}
-          comment-id: ${{ inputs.comment-id }}
-          body: ${{ steps.summary.outputs.content }}
